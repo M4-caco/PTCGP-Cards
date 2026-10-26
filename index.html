@@ -9,8 +9,6 @@
         :root {
             --pointer-x: 50%;
             --pointer-y: 50%;
-            --rotate-x: 0deg;
-            --rotate-y: 0deg;
         }
 
         body {
@@ -20,29 +18,32 @@
             justify-content: center;
             align-items: center;
             overflow: hidden;
-            perspective: 1000px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         }
 
-        /* Palco com perspectiva para o efeito 3D */
-        .card-stage {
-            perspective: 1000px;
-        }
-
-        /* A carta rígida principal */
+        /* Container do Card */
         .custom-card {
             width: 405px;
             height: 567px;
             position: relative;
             transform-style: preserve-3d;
-            transform: rotateX(var(--rotate-x)) rotateY(var(--rotate-y));
-            will-change: transform;
+            perspective: 1000px;
             cursor: pointer;
-            border-radius: 20px;
         }
 
-        /* Efeito de transição suave APENAS quando o mouse sai da carta */
-        .custom-card.is-leaving {
-            transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+        /* Camadas com transform inline animável */
+        .custom-card-body,
+        .custom-card-text {
+            will-change: transform;
+            transition: transform 0.08s ease-out;
+            transform-style: preserve-3d;
+        }
+
+        .custom-card-text-stroked {
+            -webkit-text-stroke: 3px #000000;
+            paint-order: stroke fill;
+            color: #ffffff;
+            font-weight: 900;
         }
 
         .custom-card-bg {
@@ -54,30 +55,15 @@
             border-radius: 20px;
         }
 
-        /* Camada 3D da Tipografia e Ícones (Flutua 30px à frente da carta) */
-        .custom-card-text-wrapper {
-            transform: translateZ(30px);
-            transform-style: preserve-3d;
-        }
-
-        .custom-card-text-stroked {
-            -webkit-text-stroke: 3px #000000;
-            paint-order: stroke fill;
-            color: #ffffff;
-            font-weight: 900;
-        }
-
-        /* Camada Holográfica de Brilho Direcional */
-        .holo-shine {
+        /* Brilho Holográfico que responde ao movimento do mouse */
+        .custom-card-grad {
             position: absolute;
             inset: 0;
-            border-radius: 20px;
             pointer-events: none;
-            z-index: 60;
+            z-index: 35;
             mix-blend-mode: color-dodge;
             opacity: 0;
             transition: opacity 0.2s ease;
-            transform: translateZ(1px);
             background: radial-gradient(
                 circle at var(--pointer-x) var(--pointer-y),
                 rgba(255, 255, 255, 0.8) 0%,
@@ -87,7 +73,7 @@
             );
         }
 
-        .custom-card:hover .holo-shine {
+        .custom-card:hover .custom-card-grad {
             opacity: 1;
         }
 
@@ -101,162 +87,151 @@
 </head>
 <body>
 
-    <!-- Container Responsivo de 270px (Mobile) a 405px (Desktop) -->
-    <div class="card-stage w-[270px] md:w-max h-[377px] md:h-max mx-auto mb-[40px]">
-        <div class="origin-top-left max-md:scale-[calc(270/405)] custom-card" id="pokemonCard">
-            
-            <!-- Brilho Holográfico -->
-            <div class="holo-shine"></div>
-
-            <!-- Camada 1: Fundo, Moldura e Imagem Principal -->
-            <div class="custom-card-body-wrapper absolute inset-0 rounded-[20px] overflow-hidden">
-                <div class="custom-card-body relative w-full h-full">
-                    
-                    <div class="custom-card-bg-wrapper absolute inset-0 z-10">
-                        <div class="custom-card-bg absolute inset-0"></div>
-                        <div class="custom-card-border absolute inset-0 pointer-events-none z-20"></div>
-                        <div class="custom-card-grad absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/60 z-30"></div>
-                    </div>
-
-                    <!-- Imagem do Pokémon ajustada em 100% -->
-                    <div class="custom-card-img absolute inset-0 z-40 flex items-center justify-center overflow-hidden">
-                        <img alt="Dialga Art" src="https://raw.githubusercontent.com/M4-caco/PTCGP-Cards/main/example.png" class="w-full h-full object-cover">
-                    </div>
-
-                </div>
-            </div>
-
-            <!-- Camada 2: Textos e Ícones Flutuantes (TranslateZ de 30px) -->
-            <div class="custom-card-text-wrapper absolute inset-0 z-50 p-[24px] text-white flex flex-col justify-between pointer-events-none">
-                <div class="custom-card-text h-full flex flex-col justify-between">
-                    
-                    <!-- Cabeçalho -->
-                    <div class="custom-card-text-head flex items-center justify-between">
-                        <div class="flex items-center gap-[2px]">
-                            <img class="w-[58px] h-[20px] object-contain" alt="Card Type" src="https://raw.githubusercontent.com/M4-caco/PTCGP-Cards/main/images/card-maker/card-type-pt.webp">
-                            <div class="relative max-w-[160px] my-[-0.2em] text-[26px] leading-[1.4] truncate">
-                                <div class="custom-card-text-stroked truncate">Dialga ex</div>
-                                <div class="absolute inset-0 truncate">Dialga ex</div>
-                            </div>
-                            <img class="w-[42px] h-[28px] object-contain" alt="Card EX" src="https://raw.githubusercontent.com/M4-caco/PTCGP-Cards/main/images/card-maker/card-ex.webp">
-                        </div>
+    <main class="responsive-container flex">
+        <div class="w-[270px] md:w-max h-[377px] md:h-max mx-auto mb-[40px]">
+            <div class="origin-top-left max-md:scale-[calc(270/405)] custom-card" id="cardContainer">
+                
+                <!-- Camada 1: Corpo da Carta (Fundo, Moldura e Imagem) -->
+                <div class="custom-card-body-wrapper flex absolute inset-0 rounded-[20px] overflow-hidden">
+                    <div class="custom-card-body custom-card-level-4 flex relative w-full h-full" id="cardBody" data-active="true">
                         
-                        <div class="flex items-end gap-[2px]">
-                            <span class="relative text-[16px] font-bold">
-                                <div class="custom-card-text-stroked">HP</div>
-                                <div class="absolute inset-0">HP</div>
-                            </span>
-                            <span class="relative text-[26px] font-bold">
-                                <div class="custom-card-text-stroked">150</div>
-                                <div class="absolute inset-0">150</div>
-                            </span>
-                            <img class="size-[26px] border border-solid border-white rounded-[50%] object-cover" alt="Metal" src="https://raw.githubusercontent.com/M4-caco/PTCGP-Cards/main/icons/card-aspects/metal.svg">
-                        </div>
-                    </div>
-
-                    <!-- Ataques -->
-                    <div class="custom-card-text-attacks flex flex-col gap-[14px]">
-                        
-                        <!-- Ataque 1 -->
-                        <div>
-                            <div class="flex items-center gap-[6px] text-[18px] font-bold">
-                                <div class="flex gap-[3px] w-[105px]">
-                                    <img class="size-[24px] border border-solid border-white rounded-[50%] object-cover" alt="Metal" src="https://raw.githubusercontent.com/M4-caco/PTCGP-Cards/main/icons/card-aspects/metal.svg">
-                                    <img class="size-[24px] border border-solid border-white rounded-[50%] object-cover" alt="Metal" src="https://raw.githubusercontent.com/M4-caco/PTCGP-Cards/main/icons/card-aspects/metal.svg">
-                                </div>
-                                <div class="relative grow w-0">
-                                    <div class="custom-card-text-stroked truncate">Turbo Metálico</div>
-                                    <div class="absolute inset-0 truncate">Turbo Metálico</div>
-                                </div>
-                                <div class="relative">
-                                    <div class="custom-card-text-stroked">30</div>
-                                    <div class="absolute inset-0">30</div>
-                                </div>
-                            </div>
-                            <div class="relative min-h-[1em] text-[12px] font-medium mt-[2px]">
-                                <div class="custom-card-text-stroked truncate-2">Pegue 2 Energias de Metal da sua Zona de Energia e anexe-as a 1 dos seus Pokémon no Banco.</div>
-                                <div class="absolute inset-0 truncate-2">Pegue 2 Energias de Metal da sua Zona de Energia e anexe-as a 1 dos seus Pokémon no Banco.</div>
-                            </div>
+                        <div class="custom-card-bg-wrapper absolute inset-0 z-10">
+                            <div class="custom-card-bg absolute inset-0"></div>
+                            <div class="custom-card-border absolute inset-0 pointer-events-none z-20"></div>
+                            <div class="custom-card-grad"></div>
+                            <div class="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/60 z-30 pointer-events-none"></div>
                         </div>
 
-                        <!-- Ataque 2 -->
-                        <div>
-                            <div class="flex items-center gap-[6px] text-[18px] font-bold">
-                                <div class="flex gap-[3px] w-[105px]">
-                                    <img class="size-[24px] border border-solid border-white rounded-[50%] object-cover" alt="Metal" src="https://raw.githubusercontent.com/M4-caco/PTCGP-Cards/main/icons/card-aspects/metal.svg">
-                                    <img class="size-[24px] border border-solid border-white rounded-[50%] object-cover" alt="Metal" src="https://raw.githubusercontent.com/M4-caco/PTCGP-Cards/main/icons/card-aspects/metal.svg">
-                                    <img class="size-[24px] border border-solid border-white rounded-[50%] object-cover" alt="Colorless" src="https://raw.githubusercontent.com/M4-caco/PTCGP-Cards/main/icons/card-aspects/colorless.svg">
-                                    <img class="size-[24px] border border-solid border-white rounded-[50%] object-cover" alt="Colorless" src="https://raw.githubusercontent.com/M4-caco/PTCGP-Cards/main/icons/card-aspects/colorless.svg">
-                                </div>
-                                <div class="relative grow w-0">
-                                    <div class="custom-card-text-stroked truncate">Impacto Pesado</div>
-                                    <div class="absolute inset-0 truncate">Impacto Pesado</div>
-                                </div>
-                                <div class="relative">
-                                    <div class="custom-card-text-stroked">100</div>
-                                    <div class="absolute inset-0">100</div>
-                                </div>
-                            </div>
-                            <div class="relative min-h-[1em] text-[12px] font-medium mt-[2px]">
-                                <div class="custom-card-text-stroked truncate-2"></div>
-                                <div class="absolute inset-0 truncate-2"></div>
-                            </div>
+                        <!-- Imagem do Pokémon ajustada em 100% da carta -->
+                        <div class="custom-card-img absolute inset-0 z-40 flex items-center justify-center overflow-hidden">
+                            <img alt="Dialga Art" src="https://raw.githubusercontent.com/M4-caco/PTCGP-Cards/main/example.png" class="w-full h-full object-cover">
+                            <div class="custom-card-decor absolute inset-0 pointer-events-none z-50"></div>
                         </div>
 
                     </div>
-
-                    <!-- Rodapé da Carta -->
-                    <img class="custom-card-text-bottom w-full mt-auto object-contain" alt="Card Bottom" src="https://raw.githubusercontent.com/M4-caco/PTCGP-Cards/main/images/card-maker/card-bottom-pt.webp">
-
                 </div>
-            </div>
 
+                <!-- Camada 2: Wrapper de Texto e Interface da Carta -->
+                <div class="custom-card-text-wrapper flex absolute inset-0 z-50 p-[24px] pointer-events-none">
+                    <div class="custom-card-text flex flex-col justify-between w-full h-full" id="cardText" data-active="true">
+                        
+                        <!-- Cabeçalho (Tipo, Nome, HP) -->
+                        <div class="custom-card-text-head flex items-center justify-between">
+                            <div class="flex items-center gap-[2px]">
+                                <img class="w-[58px] h-[20px] object-contain" alt="Card Type" src="https://raw.githubusercontent.com/M4-caco/PTCGP-Cards/main/images/card-maker/card-type-pt.webp">
+                                <div class="relative max-w-[160px] my-[-0.2em] text-[26px] leading-[1.4] truncate">
+                                    <div class="custom-card-text-stroked truncate">Dialga ex</div>
+                                    <div class="absolute inset-0 truncate">Dialga ex</div>
+                                </div>
+                                <img class="w-[42px] h-[28px] object-contain" alt="Card EX" src="https://raw.githubusercontent.com/M4-caco/PTCGP-Cards/main/images/card-maker/card-ex.webp">
+                            </div>
+                            
+                            <div class="flex items-end gap-[2px]">
+                                <span class="relative text-[16px]">
+                                    <div class="custom-card-text-stroked">HP</div>
+                                    <div class="absolute inset-0">HP</div>
+                                </span>
+                                <span class="relative text-[26px]">
+                                    <div class="custom-card-text-stroked">150</div>
+                                    <div class="absolute inset-0">150</div>
+                                </span>
+                                <img class="size-[26px] border border-solid border-white rounded-[50%] object-cover" alt="Metal" src="https://raw.githubusercontent.com/M4-caco/PTCGP-Cards/main/icons/card-aspects/metal.svg">
+                            </div>
+                        </div>
+
+                        <!-- Seção de Ataques -->
+                        <div class="custom-card-text-attacks flex flex-col gap-[14px]">
+                            
+                            <!-- Ataque 1 -->
+                            <div>
+                                <div class="flex items-center gap-[6px] text-[18px] font-bold">
+                                    <div class="flex gap-[3px] w-[105px]">
+                                        <img class="size-[24px] border border-solid border-white rounded-[50%] object-cover" alt="Metal" src="https://raw.githubusercontent.com/M4-caco/PTCGP-Cards/main/icons/card-aspects/metal.svg">
+                                        <img class="size-[24px] border border-solid border-white rounded-[50%] object-cover" alt="Metal" src="https://raw.githubusercontent.com/M4-caco/PTCGP-Cards/main/icons/card-aspects/metal.svg">
+                                    </div>
+                                    <div class="relative grow w-0">
+                                        <div class="custom-card-text-stroked truncate">Turbo Metálico</div>
+                                        <div class="absolute inset-0 truncate">Turbo Metálico</div>
+                                    </div>
+                                    <div class="relative">
+                                        <div class="custom-card-text-stroked">30</div>
+                                        <div class="absolute inset-0">30</div>
+                                    </div>
+                                </div>
+                                <div class="relative min-h-[1em] text-[12px] font-medium mt-[2px]">
+                                    <div class="custom-card-text-stroked truncate-2">Pegue 2 Energias de Metal da sua Zona de Energia e anexe-as a 1 dos seus Pokémon no Banco.</div>
+                                    <div class="absolute inset-0 truncate-2">Pegue 2 Energias de Metal da sua Zona de Energia e anexe-as a 1 dos seus Pokémon no Banco.</div>
+                                </div>
+                            </div>
+
+                            <!-- Ataque 2 -->
+                            <div>
+                                <div class="flex items-center gap-[6px] text-[18px] font-bold">
+                                    <div class="flex gap-[3px] w-[105px]">
+                                        <img class="size-[24px] border border-solid border-white rounded-[50%] object-cover" alt="Metal" src="https://raw.githubusercontent.com/M4-caco/PTCGP-Cards/main/icons/card-aspects/metal.svg">
+                                        <img class="size-[24px] border border-solid border-white rounded-[50%] object-cover" alt="Metal" src="https://raw.githubusercontent.com/M4-caco/PTCGP-Cards/main/icons/card-aspects/metal.svg">
+                                        <img class="size-[24px] border border-solid border-white rounded-[50%] object-cover" alt="Colorless" src="https://raw.githubusercontent.com/M4-caco/PTCGP-Cards/main/icons/card-aspects/colorless.svg">
+                                        <img class="size-[24px] border border-solid border-white rounded-[50%] object-cover" alt="Colorless" src="https://raw.githubusercontent.com/M4-caco/PTCGP-Cards/main/icons/card-aspects/colorless.svg">
+                                    </div>
+                                    <div class="relative grow w-0">
+                                        <div class="custom-card-text-stroked truncate">Impacto Pesado</div>
+                                        <div class="absolute inset-0 truncate">Impacto Pesado</div>
+                                    </div>
+                                    <div class="relative">
+                                        <div class="custom-card-text-stroked">100</div>
+                                        <div class="absolute inset-0">100</div>
+                                    </div>
+                                </div>
+                                <div class="relative min-h-[1em] text-[12px] font-medium mt-[2px]">
+                                    <div class="custom-card-text-stroked truncate-2"></div>
+                                    <div class="absolute inset-0 truncate-2"></div>
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <!-- Rodapé -->
+                        <img class="custom-card-text-bottom w-full mt-auto object-contain" alt="Card Bottom" src="https://raw.githubusercontent.com/M4-caco/PTCGP-Cards/main/images/card-maker/card-bottom-pt.webp">
+
+                    </div>
+                </div>
+
+            </div>
         </div>
-    </div>
+    </main>
 
-    <!-- Script de Rotação 3D Rígida e Instantânea (60 FPS) -->
+    <!-- Script de Parallax Multicamada exato do TCG Pocket -->
     <script>
-        const card = document.getElementById('pokemonCard');
-        let rafId = null;
+        const container = document.getElementById('cardContainer');
+        const cardBody = document.getElementById('cardBody');
+        const cardText = document.getElementById('cardText');
 
-        function updateParallax(e) {
-            const rect = card.getBoundingClientRect();
+        container.addEventListener('mousemove', (e) => {
+            const rect = container.getBoundingClientRect();
             const x = e.clientX - rect.left;
             const y = e.clientY - rect.top;
 
             const centerX = rect.width / 2;
             const centerY = rect.height / 2;
 
-            // Rotação máxima de 15 graus
-            const rotateX = -((y - centerY) / centerY) * 15;
-            const rotateY = ((x - centerX) / centerX) * 15;
+            // Rotação exata baseada nas coordenadas do Inspector do site original
+            const rotateX = -((y - centerY) / centerY) * 12;
+            const rotateY = ((x - centerX) / centerX) * 12;
 
-            // Posição percentual do mouse para o brilho holográfico
+            // Aplica transformações inline exatamente como o site inspecionado faz
+            cardBody.style.transform = `rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg)`;
+            cardText.style.transform = `rotateX(${(rotateX * 1.15).toFixed(2)}deg) rotateY(${(rotateY * 1.15).toFixed(2)}deg) translateZ(15px)`;
+
+            // Atualiza brilho holográfico
             const percentX = (x / rect.width) * 100;
             const percentY = (y / rect.height) * 100;
-
-            if (rafId) cancelAnimationFrame(rafId);
-
-            rafId = requestAnimationFrame(() => {
-                card.style.setProperty('--rotate-x', `${rotateX.toFixed(2)}deg`);
-                card.style.setProperty('--rotate-y', `${rotateY.toFixed(2)}deg`);
-                card.style.setProperty('--pointer-x', `${percentX.toFixed(1)}%`);
-                card.style.setProperty('--pointer-y', `${percentY.toFixed(1)}%`);
-            });
-        }
-
-        card.addEventListener('mouseenter', () => {
-            card.classList.remove('is-leaving');
+            container.style.setProperty('--pointer-x', `${percentX.toFixed(1)}%`);
+            container.style.setProperty('--pointer-y', `${percentY.toFixed(1)}%`);
         });
 
-        card.addEventListener('mousemove', updateParallax);
-
-        card.addEventListener('mouseleave', () => {
-            card.classList.add('is-leaving');
-            card.style.setProperty('--rotate-x', '0deg');
-            card.style.setProperty('--rotate-y', '0deg');
-            card.style.setProperty('--pointer-x', '50%');
-            card.style.setProperty('--pointer-y', '50%');
+        container.addEventListener('mouseleave', () => {
+            cardBody.style.transform = 'rotateX(0deg) rotateY(0deg)';
+            cardText.style.transform = 'rotateX(0deg) rotateY(0deg) translateZ(0px)';
         });
     </script>
 </body>
