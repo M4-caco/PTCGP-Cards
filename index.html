@@ -1,265 +1,307 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Carta Pokémon — paralaxe em camadas</title>
-<style>
-  :root { color-scheme:dark; --gold:#ffe65c; --card-w:405px; --card-h:566px; }
-  * { box-sizing:border-box; }
-  body {
-    margin:0; min-height:100svh; padding:24px 16px; display:grid; place-items:center;
-    background:#0d0d16; color:#f7f5f7; font:14px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;
-  }
-  .demo { display:grid; justify-items:center; gap:14px; }
-  .card-stage { width:min(var(--card-w), calc(100vw - 40px)); aspect-ratio:405/566; position:relative; }
-  .pokemon-card { position:absolute; inset:0; width:100%; height:100%; user-select:none; }
-
-  /* Os dois wrappers separados criam a mesma perspectiva independente do corpo e do texto. */
-  .body-perspective, .text-perspective {
-    position:absolute; inset:0; display:flex; width:100%; height:100%;
-    transform:translateZ(0); perspective:1000px;
-  }
-  .body-perspective > *, .text-perspective > * { transform-style:preserve-3d; }
-  .text-perspective { pointer-events:none; }
-  .card-body {
-    --color1:#ec9bb6; --color2:#ccac6f; --color3:#69e4a5; --color4:#8ec5d6; --color5:#b98cce;
-    position:relative; z-index:10; display:flex; width:100%; height:100%; border-radius:24px;
-    transform-style:preserve-3d; transform-origin:center; touch-action:none;
-    box-shadow:-5px -5px 5px -5px var(--color1),5px 5px 5px -5px var(--color2),
-      -7px -7px 10px -5px transparent,7px 7px 10px -5px transparent,
-      0 0 5px 0 #ffffff00,0 55px 35px -20px #0008;
-    transition:transform .5s ease, box-shadow .2s ease;
-  }
-  .card-body[data-active] { transition:box-shadow .1s ease-out; box-shadow:0 0 30px -5px #ff0,0 0 10px -2px #ff0; }
-  .bg-window {
-    position:absolute; inset:0; border-radius:24px; overflow:hidden; isolation:isolate;
-  }
-  .card-bg {
-    position:absolute; inset:0;
-    background-image:url("https://raw.githubusercontent.com/M4-caco/PTCGP-Cards/main/card-bg.webp"),url("https://raw.githubusercontent.com/M4-caco/PTCGP-Cards/main/card-bg-2.webp");
-    background-repeat:no-repeat,no-repeat; background-position:50% 50%,50% 50%;
-    background-size:465px 648px,465px 648px; transition:background-position .5s ease;
-  }
-  .card-border {
-    position:absolute; inset:0; border-radius:24px;
-    background:url("https://raw.githubusercontent.com/M4-caco/PTCGP-Cards/main/card-border.webp") no-repeat 50%/100% 100%;
-  }
-  .card-grad {
-    position:absolute; z-index:1; inset:0; opacity:.8; mix-blend-mode:color-dodge;
-    background-repeat:no-repeat; background-position:50% 50%; background-size:300% 300%;
-    filter:brightness(.8) contrast(1); transition:background-position .5s ease,opacity .5s ease;
-  }
-  .card-body[data-active] .card-grad {
-    background-image:linear-gradient(135deg,transparent 35%,var(--color1) 44%,var(--color2) 47%,var(--color3) 50%,var(--color4) 53%,var(--color5) 56%,transparent 65%);
-    background-size:250% 250%; transition:none;
-  }
-  .card-body[data-active] .card-bg { transition:none; }
-  .card-img {
-    position:relative; width:calc(100% - 33px); height:calc(100% - 36px); border-radius:4px;
-    margin:auto; overflow:hidden; pointer-events:none; object-fit:cover;
-    transform:translateZ(50px) scale(.95); transform-origin:center;
-  }
-  .card-img > img {
-    position:absolute; top:50%; left:50%; width:100%; height:100%; object-fit:contain;
-    transform:translate(-50%,-50%) scale(1) translateX(0%) translateY(0%);
-    transform-origin:center; transition:transform .12s ease-out;
-  }
-  .card-decor {
-    position:absolute; top:-18px; left:-12px; right:-12px; bottom:-18px;
-    background:url("https://raw.githubusercontent.com/M4-caco/PTCGP-Cards/main/card-decor.webp") no-repeat 50%/100% 100%;
-    opacity:.7; filter:brightness(1.2); pointer-events:none;
-  }
-  .card-copy {
-    position:relative; width:100%; height:100%; color:#231417; letter-spacing:-.02em;
-    transition:transform .5s ease; transform-origin:center;
-  }
-  .card-copy[data-active] { transition:none; }
-  .outlined { -webkit-text-stroke:.1em #fff; paint-order:stroke fill; }
-  .card-head {
-    position:absolute; top:24px; left:10px; right:21px; display:flex; justify-content:space-between;
-    align-items:flex-start; font-weight:800; line-height:1; text-shadow:0 1px 1px #fff;
-  }
-  .name-line { display:flex; align-items:baseline; gap:5px; font-size:26px; }
-  .basic { font-size:10px; color:#49432e; background:#e8e0a9; border-radius:4px; padding:2px 4px; letter-spacing:0; }
-  .name { font-size:26px; font-weight:900; }
-  .hp { display:flex; align-items:baseline; gap:3px; white-space:nowrap; font-size:14px; }
-  .hp strong { font-size:25px; }
-  .metal-dot { align-self:center; width:20px; height:20px; display:inline-grid; place-items:center; border:1px solid white; border-radius:50%; background:#69747a; color:white; font-size:11px; }
-  .attacks { position:absolute; left:32px; right:32px; bottom:176px; display:flex; flex-direction:column; gap:12px; transform:translateY(50%); }
-  .attack-head { display:flex; justify-content:space-between; gap:8px; align-items:baseline; font-size:18px; font-weight:800; }
-  .attack-name { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .energy { font-size:17px; letter-spacing:1px; color:#d9d8d0; -webkit-text-stroke:.7px #5e5d58; white-space:nowrap; }
-  .damage { flex:none; }
-  .attack-desc { margin-top:2px; font-size:12px; line-height:1.2; font-weight:600; }
-  .footer-art {
-    position:absolute; right:6px; bottom:18px; width:370px; height:65px; object-fit:contain;
-  }
-  .simple-glare {
-    position:absolute; inset:0; border-radius:24px; z-index:11; pointer-events:none;
-    opacity:0; mix-blend-mode:screen;
-    background:radial-gradient(circle at var(--px,50%) var(--py,50%),#ffffff70,transparent 48%);
-  }
-  .mode-holo .simple-glare { opacity:.65; }
-
-  .controls { display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:8px; }
-  .controls button,.zoom-control {
-    min-height:36px; border:1px solid #ffffff2b; border-radius:999px; background:#ffffff0a;
-    color:#e9e8ed; padding:8px 13px; font:600 12px system-ui; cursor:pointer;
-  }
-  .controls button[aria-pressed="true"] { color:#17130a; background:var(--gold); border-color:var(--gold); }
-  .zoom-control { display:flex; align-items:center; gap:9px; cursor:default; }
-  .zoom-control input { width:120px; accent-color:var(--gold); cursor:pointer; }
-  #zoomValue { min-width:38px; text-align:right; color:#fff; font-variant-numeric:tabular-nums; }
-  .hint { color:#a9a8b2; font-size:11px; text-align:center; }
-  @media(max-width:440px) {
-    .card-head { top:5%; left:2.5%; right:5%; }
-    .name-line,.name { font-size:clamp(17px,6vw,26px); }
-    .hp strong { font-size:clamp(19px,6vw,25px); }
-    .attacks { left:8%; right:8%; bottom:31%; }
-    .attack-head { font-size:clamp(12px,4vw,18px); }
-    .attack-desc { font-size:clamp(9px,2.8vw,12px); }
-    .footer-art { width:91%; right:2%; height:11.5%; bottom:3%; }
-    .zoom-control input { width:96px; }
-  }
-  @media(prefers-reduced-motion:reduce) { *,*::before,*::after { transition-duration:.01ms!important; } }
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#10192b">
+  <title>PTCGP Card Studio — Criador de cartas</title>
+  <style>
+    @font-face{font-family:Cabinet;src:url('./CabinetGrotesk-Regular.woff2') format('woff2');font-weight:400;font-display:swap}
+    @font-face{font-family:Cabinet;src:url('./CabinetGrotesk-Bold.woff2') format('woff2');font-weight:700;font-display:swap}
+    @font-face{font-family:Matter;src:url('./Matter-Regular.otf') format('opentype');font-weight:400;font-display:swap}
+    @font-face{font-family:Matter;src:url('./Matter-Bold.otf') format('opentype');font-weight:700;font-display:swap}
+    :root{color-scheme:dark;--bg:#0b1322;--surface:#101b2e;--surface2:#17243a;--surface3:#1d2c45;--line:#2a3b58;--text:#f3f6fc;--muted:#a2aec2;--accent:#8baaff;--accent2:#b8c9ff;--green:#8de2ba;--gold:#f7d57c;--danger:#ff9b9b;--radius:14px;--font:Cabinet,system-ui,sans-serif;--body:Matter,system-ui,sans-serif}
+    *{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:var(--body)}body{min-height:100vh;background:radial-gradient(ellipse at 68% 15%,#1a2a45 0,transparent 36%),var(--bg)}button,input,select,textarea{font:inherit}button{color:inherit}button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+    .topbar{height:68px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;border-bottom:1px solid #ffffff14;background:#0c1525eF;position:sticky;top:0;z-index:100;backdrop-filter:blur(16px)}.brand{display:flex;align-items:center;gap:11px;text-decoration:none;color:var(--text)}.brand-mark{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#91b3ff,#677bea);position:relative;box-shadow:0 6px 20px #6c85e94d}.brand-mark:before,.brand-mark:after{content:"";position:absolute;left:7px;right:7px;height:5px;border-radius:4px;background:#f7f9ff}.brand-mark:before{top:9px}.brand-mark:after{top:19px;right:12px}.brand-title{font:700 16px/1 var(--font);letter-spacing:.01em}.brand-sub{font:11px/1.2 var(--body);color:var(--muted);margin-top:4px}.top-actions{display:flex;align-items:center;gap:9px}.pill{border:1px solid var(--line);border-radius:999px;background:#ffffff08;color:#dce5f7;padding:9px 14px;cursor:pointer;font-size:12px;font-weight:700;transition:.18s}.pill:hover{border-color:#7e9eff;background:#88a8ff18}.pill.primary{background:var(--accent);color:#10192c;border-color:var(--accent)}.pill.primary:hover{background:#a6bcff}.status-pill{color:var(--green);display:flex;gap:7px;align-items:center;padding:0 6px;font-size:11px;font-weight:700}.status-dot{height:7px;width:7px;border-radius:100%;background:var(--green);box-shadow:0 0 10px #8de2ba7a}
+    .workspace{max-width:1640px;margin:0 auto;min-height:calc(100vh - 68px);display:grid;grid-template-columns:214px minmax(340px,440px) minmax(400px,1fr);gap:16px;padding:16px}
+    .rail,.editor-panel,.preview-panel{border:1px solid #ffffff12;border-radius:var(--radius);background:linear-gradient(180deg,#142138f5,#111b2cf5);box-shadow:0 18px 55px #0002;min-width:0}.rail{display:flex;flex-direction:column;padding:12px 10px;position:sticky;top:84px;height:calc(100vh - 100px);min-height:580px}.rail-heading{padding:10px 10px 13px;font-size:10px;font-weight:700;color:#8494af;letter-spacing:.13em;text-transform:uppercase}.rail-nav{display:grid;gap:4px;overflow:auto}.rail-button{height:42px;border:0;border-radius:9px;background:transparent;color:#aeb9cc;text-align:left;padding:0 10px;display:flex;align-items:center;gap:11px;cursor:pointer;font-size:12px;font-weight:700;transition:background .15s,color .15s}.rail-button:hover{background:#ffffff0c;color:#fff}.rail-button.active{background:#809eff22;color:#dbe5ff;box-shadow:inset 2px 0 #91aaff}.rail-icon{width:24px;height:24px;border:1px solid #ffffff16;border-radius:7px;display:grid;place-items:center;color:#a9bfff;font-size:11px;flex:none}.rail-bottom{margin-top:auto;padding:10px 3px 2px;display:grid;gap:8px}.rail-bottom .pill{width:100%;height:39px}.rail-note{font-size:10px;line-height:1.45;color:#7f8da4;text-align:center;padding:0 7px}
+    .editor-panel{height:calc(100vh - 100px);min-height:580px;overflow:hidden;display:flex;flex-direction:column}.editor-head{padding:19px 19px 14px;border-bottom:1px solid #ffffff10;display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.editor-head h1{font:700 18px/1.1 var(--font);margin:0}.editor-head p{margin:5px 0 0;color:var(--muted);font-size:11px}.editor-head .tiny-tag{font-size:9px;color:var(--green);border:1px solid #8de2ba50;border-radius:999px;padding:4px 7px;white-space:nowrap}.panel-scroll{padding:16px 18px 26px;overflow:auto;scrollbar-width:thin;scrollbar-color:#526686 transparent;flex:1}.form-section{display:none}.form-section.active{display:block}.section-kicker{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#91a4c2;margin:0 0 14px}.group{border:1px solid #ffffff12;background:#ffffff04;border-radius:11px;padding:13px;margin-bottom:12px}.group-title{display:flex;align-items:center;justify-content:space-between;font:700 12px var(--font);color:#eaf0fa;margin-bottom:11px}.group-title small{color:#8fa1bd;font:10px var(--body)}.field-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.field{min-width:0;display:grid;gap:5px}.field.full{grid-column:1/-1}.field label{font-size:9px;color:#9ba9bf;font-weight:700;letter-spacing:.08em;text-transform:uppercase}.field input,.field select,.field textarea{width:100%;min-width:0;background:#0c1628;border:1px solid #34445f;color:#f2f5fb;border-radius:7px;padding:9px 10px;font-size:12px;outline:none}.field textarea{min-height:66px;resize:vertical;line-height:1.4}.field input:hover,.field select:hover,.field textarea:hover{border-color:#657b9f}.field input[type=color]{height:36px;padding:3px}.field input[type=range]{padding:0;accent-color:#a5baff}.field .subhint{font-size:9px;color:#7f8da4;line-height:1.4}.inline-fields{display:grid;grid-template-columns:1fr 1fr;gap:8px}.preset-summary{border:1px solid #506689;background:#192945;border-radius:9px;padding:10px 12px;margin:0 0 12px}.preset-summary b{font:700 12px var(--font);color:#e4eaff}.preset-summary p{font-size:10px;line-height:1.4;color:#aab7cc;margin:5px 0 0}.select-row{display:grid;grid-template-columns:1fr 1fr;gap:9px}.divider{height:1px;background:#ffffff12;margin:12px 0}.upload-drop{position:relative;border:1px dashed #64799a;border-radius:10px;min-height:104px;display:grid;place-items:center;text-align:center;padding:14px;background:#101d31;cursor:pointer;transition:.16s}.upload-drop:hover{border-color:#a7bbff;background:#192844}.upload-drop input{position:absolute;inset:0;opacity:0;cursor:pointer}.upload-symbol{width:28px;height:28px;border-radius:9px;background:#91abff24;color:#b5c8ff;display:grid;place-items:center;margin:0 auto 7px;font-size:16px}.upload-drop strong{font:700 11px var(--font)}.upload-drop span{display:block;font-size:9px;color:#94a2b7;margin-top:3px}.effect-top{display:flex;justify-content:space-between;align-items:center;margin:4px 0 9px;color:#9ba9bf;font-size:10px}.effect-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;max-height:260px;overflow:auto;padding-right:3px}.effect-option{position:relative;cursor:pointer;border:1px solid #ffffff16;border-radius:8px;background:#0d1728;padding:4px;display:grid;gap:4px;text-align:center;min-width:0}.effect-option:hover{border-color:#8baaff}.effect-option.selected{border-color:#a7bbff;box-shadow:0 0 0 1px #a7bbff48;background:#718ee71a}.effect-option img{width:100%;aspect-ratio:240/335;object-fit:cover;border-radius:4px}.effect-option span{font-size:8px;color:#cad4e6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.effect-option input{position:absolute;opacity:0;pointer-events:none}.microcopy{color:#8090a7;font-size:9px;line-height:1.45;margin-top:9px}.panel-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.panel-actions button{flex:1;min-width:120px}
+    .preview-panel{min-height:580px;display:flex;flex-direction:column;overflow:hidden;background:radial-gradient(ellipse at 50% 42%,#223759 0,transparent 48%),linear-gradient(135deg,#111d31,#0e1829)}.preview-head{height:57px;padding:0 17px;border-bottom:1px solid #ffffff12;display:flex;align-items:center;justify-content:space-between;gap:10px}.preview-title{font:700 13px var(--font)}.preview-subtitle{font-size:10px;color:#8fa1bd;margin-top:3px}.preview-head-left{display:flex;flex-direction:column}.preview-zoom{display:flex;align-items:center;gap:7px;font-size:10px;color:#a7b3c8}.preview-zoom input{width:96px;accent-color:#a6baff}.preview-zoom output{min-width:34px;text-align:right;color:#e1e9f8;font-variant-numeric:tabular-nums}.preview-canvas{flex:1;min-height:0;display:grid;place-items:center;padding:15px;overflow:auto}.card-stage{width:min(100%,410px);aspect-ratio:240/335;position:relative;perspective:1000px;touch-action:pan-y;isolation:isolate;filter:drop-shadow(0 18px 22px #0008);--px:50%;--py:50%;--holo-x:50%;--holo-y:50%}.card-body-perspective,.card-copy-perspective{position:absolute;inset:0;width:100%;height:100%;perspective:1000px;transform:translateZ(0)}.card-copy-perspective{pointer-events:none}.card-body,.card-copy{position:absolute;inset:0;width:100%;height:100%;transform-style:preserve-3d;transform-origin:center;transition:transform .5s ease}.card-body{--c1:#fcad60;--c2:#f2d56d;--c3:#66d9cb;--c4:#a285ed;--c5:#f28ac7}.card-body[data-active=true],.card-copy[data-active=true]{transition:none}.card-bg-window{position:absolute;inset:0;border-radius:5.7%;overflow:hidden;isolation:isolate;background:var(--card-back,#72bbec)}.card-bg{position:absolute;inset:0;z-index:1;background-image:url('./card-bg.webp'),url('./card-bg-2.webp');background-repeat:no-repeat,no-repeat;background-position:50% 50%,50% 50%;background-size:115% 115%,115% 115%;transition:background-position .5s ease;mix-blend-mode:normal}.card-back-color{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 44%,#bfe7ff 0,#6ab5e8 50%,#3877b2 100%);z-index:0}.card-border-back{position:absolute;inset:-.5%;z-index:2;background:url('./card-border.webp') no-repeat center/100% 100%;pointer-events:none;transform:translateZ(4px)}.art-window{position:absolute;left:7%;top:12%;width:86%;height:64%;overflow:hidden;z-index:3;transform:translateZ(25px);border-radius:2px}.art-window img{width:100%;height:100%;object-fit:cover;object-position:center;display:block}.card-art-cutout{position:absolute;left:-3%;top:-3%;width:106%;height:106%;object-fit:contain;object-position:center;z-index:10;transform:translateZ(56px) scale(var(--art-zoom,1)) translate(var(--art-x,0%),var(--art-y,0%));transform-origin:center;pointer-events:none;transition:transform .12s ease-out}.card-frame{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;z-index:8;pointer-events:none;transform:translateZ(28px)}.card-decor{position:absolute;inset:-2%;z-index:11;pointer-events:none;background:url('./card-decor.webp') no-repeat center/100% 100%;opacity:.64;transform:translateZ(38px)}.card-grad{position:absolute;inset:0;z-index:12;opacity:0;mix-blend-mode:color-dodge;background-repeat:no-repeat;background-position:50% 50%;background-size:250% 250%;filter:brightness(.82) contrast(1);transition:background-position .5s ease,opacity .3s ease;pointer-events:none;transform:translateZ(45px)}.card-body[data-active=true] .card-grad{opacity:.72;background-image:linear-gradient(135deg,transparent 34%,var(--c1) 43%,var(--c2) 47%,var(--c3) 50%,var(--c4) 54%,var(--c5) 59%,transparent 68%);transition:none}.selected-effects{position:absolute;inset:0;z-index:13;pointer-events:none;transform:translateZ(50px)}.selected-effects img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;mix-blend-mode:screen;opacity:.30}.card-glare{position:absolute;inset:0;border-radius:5.7%;z-index:14;pointer-events:none;mix-blend-mode:screen;opacity:0;background:radial-gradient(circle at var(--px) var(--py),#ffffff85,transparent 49%);transform:translateZ(60px);transition:opacity .2s}.card-stage[data-parallax=true] .card-glare{opacity:.35}.card-copy{z-index:20;color:#182033;letter-spacing:-.02em;text-shadow:0 1px 1px #fff8}.card-head{position:absolute;left:8%;right:7%;top:5%;height:11%;display:flex;align-items:center;justify-content:space-between;gap:4px;font:700 clamp(10px,2vw,18px)/1 var(--font)}.card-stage[data-model^=trainer] .card-head{top:5.5%}.card-name-block{display:flex;align-items:center;gap:5px;min-width:0}.card-stage-label{font-size:clamp(6px,1.05vw,9px);font-weight:700;background:#f2f1e7e8;border:1px solid #72777a70;border-radius:4px;padding:2px 4px;text-transform:uppercase;white-space:nowrap}.card-name{font-size:clamp(13px,3vw,22px);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:58%;-webkit-text-stroke:.12em #fff;paint-order:stroke fill}.card-hp{display:flex;align-items:center;gap:3px;font:700 clamp(8px,1.5vw,12px) var(--font);white-space:nowrap}.card-hp strong{font:700 clamp(15px,3.4vw,25px) var(--font);-webkit-text-stroke:.1em #fff;paint-order:stroke fill}.card-type-symbol{width:clamp(15px,3.5vw,25px);height:clamp(15px,3.5vw,25px);object-fit:contain;filter:drop-shadow(0 1px 1px #fff)}.card-stage[data-model^=trainer] .card-hp{display:none}.card-attack-area{position:absolute;left:9%;right:8%;top:59%;height:24%;display:flex;flex-direction:column;justify-content:center;gap:7%;font-family:var(--font)}.card-stage[data-model^=trainer] .card-attack-area{top:71%;height:15%}.attack-row{display:grid;grid-template-columns:auto 1fr auto;gap:4px;align-items:center;font-weight:700;font-size:clamp(9px,1.7vw,14px)}.attack-energy{display:flex;gap:2px;align-items:center}.attack-energy img{width:clamp(9px,2vw,15px);height:clamp(9px,2vw,15px);object-fit:contain}.attack-title{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.attack-damage{font-size:clamp(11px,2.2vw,17px);-webkit-text-stroke:.12em #fff;paint-order:stroke fill}.attack-description{grid-column:1/-1;font:600 clamp(7px,1.25vw,10px)/1.2 var(--body);margin-top:-2px;max-height:2.5em;overflow:hidden}.trainer-description{display:none;position:absolute;left:10%;right:9%;top:54%;font:600 clamp(8px,1.4vw,11px)/1.3 var(--body);color:#20283a}.card-stage[data-model^=trainer] .trainer-description{display:block}.card-stage[data-model^=trainer] .card-attack-area{display:none}.card-stage[data-model^=trainer] .attack-row:nth-child(2){display:none}.card-bottom{position:absolute;left:7%;right:7%;bottom:4%;height:12%;display:flex;align-items:flex-end;justify-content:space-between;font:700 clamp(6px,1.2vw,9px)/1.1 var(--font);color:#1d2535}.card-bottom img{max-width:65%;max-height:100%;object-fit:contain;position:absolute;bottom:0;left:0;z-index:0}.card-bottom-meta{position:relative;z-index:1;margin-left:auto;text-align:right;max-width:60%;padding:0 2px 2px}.card-stage[data-parallax=true] .card-body{box-shadow:0 0 22px #f9e95d55,0 22px 30px #0007}.card-stage[data-parallax=false] .card-body{box-shadow:0 20px 32px #0005}.preview-footer{border-top:1px solid #ffffff12;padding:12px 15px;display:flex;align-items:center;justify-content:space-between;gap:12px}.class-status{font-size:10px;color:#9cabc0;line-height:1.35}.class-status b{color:#dce5f8}.class-status .on{color:var(--green)}.preview-tools{display:flex;gap:7px}.icon-btn{width:34px;height:34px;border:1px solid var(--line);border-radius:9px;background:#ffffff08;display:grid;place-items:center;color:#d2dced;cursor:pointer}.icon-btn:hover{border-color:#8ca7ee;color:#fff}.toast{position:fixed;right:18px;bottom:18px;z-index:200;background:#15253d;border:1px solid #4a6187;border-radius:10px;padding:11px 14px;box-shadow:0 12px 40px #0008;color:#eef4ff;font-size:12px;opacity:0;transform:translateY(8px);pointer-events:none;transition:.2s}.toast.show{opacity:1;transform:none}
+    .small-button{border:1px solid #3b4e6c;border-radius:7px;background:#182842;color:#dce6f8;padding:8px 10px;font-size:10px;font-weight:700;cursor:pointer}.small-button:hover{border-color:#8baaff}.hidden-file{display:none}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+    @media(max-width:1200px){.workspace{grid-template-columns:185px minmax(310px,390px) minmax(330px,1fr);gap:11px;padding:11px}.rail{top:79px}.editor-panel,.preview-panel{min-height:550px}.card-stage{width:min(100%,360px)}}
+    @media(max-width:900px){.topbar{height:60px;padding:0 13px}.workspace{grid-template-columns:1fr;min-height:unset;padding:10px}.rail{position:static;height:auto;min-height:0;order:0;padding:7px}.rail-heading,.rail-bottom{display:none}.rail-nav{display:flex;overflow:auto;gap:5px}.rail-button{height:36px;white-space:nowrap;flex:none;padding:0 10px}.rail-icon{width:20px;height:20px}.editor-panel{height:auto;min-height:0;max-height:none;order:1}.panel-scroll{max-height:66vh}.preview-panel{order:2;min-height:650px}.card-stage{width:min(86vw,410px)}.status-pill{display:none}}
+    @media(max-width:520px){.brand-sub{display:none}.brand-title{font-size:14px}.topbar{padding:0 10px}.top-actions .pill:not(.primary){display:none}.workspace{padding:7px}.editor-head{padding:14px}.panel-scroll{padding:12px}.field-grid{grid-template-columns:1fr 1fr}.preview-panel{min-height:600px}.preview-head{padding:0 11px}.preview-canvas{padding:10px}.preview-zoom input{width:75px}.preview-footer{padding:10px}.preview-tools .pill{padding:8px 10px}.effect-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+    @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:.01ms!important;scroll-behavior:auto!important}}
+  </style>
 </head>
 <body>
-<main class="demo mode-layers" id="demo">
-  <div class="card-stage" id="cardStage">
-    <article class="pokemon-card" id="pokemonCard" aria-label="Carta Pokémon Dialga ex">
-      <div class="body-perspective">
-        <div class="card-body" id="cardBody">
-          <div class="bg-window">
-            <div class="card-bg" id="cardBg"></div>
-            <div class="card-border"></div>
-            <div class="card-grad" id="cardGrad"></div>
-          </div>
-          <div class="card-img" id="cardImg">
-            <img id="pokemonArt" src="https://raw.githubusercontent.com/M4-caco/PTCGP-Cards/main/example.png" alt="Dialga">
-            <div class="card-decor"></div>
-          </div>
-        </div>
-      </div>
-      <div class="text-perspective">
-        <div class="card-copy" id="cardCopy">
-          <header class="card-head">
-            <div class="name-line"><span class="basic">BÁSICO</span><span class="name outlined">Dialga ex</span></div>
-            <div class="hp"><span>HP</span><strong class="outlined">150</strong><span class="metal-dot">●</span></div>
-          </header>
-          <section class="attacks" aria-label="Ataques">
-            <div>
-              <div class="attack-head"><span class="attack-name"><span class="energy">● ●</span> Turbo Metálico</span><span class="damage outlined">30</span></div>
-              <div class="attack-desc outlined">Pegue 2 Energias de Metal da sua Zona de Energia e anexe-as a 1 dos seus Pokémon no Banco.</div>
-            </div>
-            <div>
-              <div class="attack-head"><span class="attack-name"><span class="energy">● ● ◇ ◇</span> Impacto Pesado</span><span class="damage outlined">100</span></div>
-            </div>
-          </section>
-          <img class="footer-art" src="https://raw.githubusercontent.com/M4-caco/PTCGP-Cards/main/card-bottom-pt.webp" alt="">
-        </div>
-      </div>
-      <div class="simple-glare"></div>
-    </article>
-  </div>
-  <nav class="controls" aria-label="Modo de paralaxe">
-    <button type="button" data-mode="tilt" aria-pressed="false">1 · 3D</button>
-    <button type="button" data-mode="layers" aria-pressed="true">2 · Camadas</button>
-    <button type="button" data-mode="holo" aria-pressed="false">3 · Holográfico</button>
-    <label class="zoom-control" for="zoomRange"><span>Zoom</span><input id="zoomRange" type="range" min="70" max="130" step="1" value="100" aria-label="Zoom da arte"><output id="zoomValue">100%</output></label>
-  </nav>
-  <div class="hint">Mova o cursor sobre a carta. Ajuste o zoom da arte no controle.</div>
-</main>
-<script>
-(() => {
-  const demo = document.getElementById('demo');
-  const stage = document.getElementById('cardStage');
-  const cardBody = document.getElementById('cardBody');
-  const cardCopy = document.getElementById('cardCopy');
-  const cardBg = document.getElementById('cardBg');
-  const cardGrad = document.getElementById('cardGrad');
-  const art = document.getElementById('pokemonArt');
-  const zoomRange = document.getElementById('zoomRange');
-  const zoomValue = document.getElementById('zoomValue');
-  let activeMode = 'layers';
-  let raf = 0;
+  <header class="topbar">
+    <a class="brand" href="#" aria-label="PTCGP Card Studio">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span><span class="brand-title">PTCGP CARD STUDIO</span><span class="brand-sub">Criador de cartas personalizadas</span></span>
+    </a>
+    <div class="top-actions">
+      <span class="status-pill"><i class="status-dot"></i> Salvamento local</span>
+      <button class="pill" id="saveCard" type="button">Salvar rascunho</button>
+      <button class="pill primary" id="downloadPng" type="button">Baixar PNG</button>
+    </div>
+  </header>
 
-  function clamp(n,min,max) { return Math.min(Math.max(n,min),max); }
-  function reset() {
-    cardBody.style.transform = '';
-    cardCopy.style.transform = '';
-    cardBody.removeAttribute('data-active');
-    cardCopy.removeAttribute('data-active');
-    cardBg.style.backgroundPosition = '';
-    cardGrad.style.backgroundPosition = '';
-  }
-  function updateLayers(clientX,clientY) {
-    const rect = stage.getBoundingClientRect();
-    const w = rect.width, h = rect.height;
-    const offsetX = clientX - rect.left, offsetY = clientY - rect.top;
-    // Reproduz a fórmula do site: amplia o deslocamento 1,5× e limita à área da carta.
-    const x = clamp(w/2 + (offsetX - w/2)*1.5, 0, w);
-    const y = clamp(h/2 + (offsetY - h/2)*1.5, 0, h);
-    const n = Math.abs(Math.floor(100/w*x) - 100);
-    const o = Math.abs(Math.floor(100/h*y) - 100);
-    const mx = 50 + (n-50)/1.5;
-    const my = 50 + (o-50)/1.5;
-    const rx = -((my-50)/2);
-    const ry = ((mx-50)/1.5*.5);
-    // No original, o fundo usa N (movimento menor) e o gradiente usa v (movimento maior).
-    const bgPos = `${50+(n-50)/2}% ${50+(o-50)/2}%`;
-    const gradPos = `${mx}% ${my}%`;
-    cancelAnimationFrame(raf);
-    raf = requestAnimationFrame(() => {
-      const transform = `rotateX(${rx}deg) rotateY(${ry}deg)`;
-      cardBody.style.transform = transform;
-      cardCopy.style.transform = transform;
-      cardBody.dataset.active = 'true';
-      cardCopy.dataset.active = 'true';
-      cardBg.style.backgroundPosition = `${bgPos}, ${bgPos}`;
-      cardGrad.style.backgroundPosition = gradPos;
-      stage.style.setProperty('--px', `${offsetX/w*100}%`);
-      stage.style.setProperty('--py', `${offsetY/h*100}%`);
-    });
-  }
-  function updateSimpleTilt(clientX,clientY) {
-    const r = stage.getBoundingClientRect();
-    const dx = clamp((clientX-r.left)/r.width,0,1)-.5;
-    const dy = clamp((clientY-r.top)/r.height,0,1)-.5;
-    const transform = `rotateX(${-dy*30}deg) rotateY(${dx*24}deg)`;
-    cardBody.style.transform = transform;
-    cardCopy.style.transform = transform;
-    cardBody.dataset.active = 'true'; cardCopy.dataset.active = 'true';
-  }
-  stage.addEventListener('pointermove', e => {
-    if (e.pointerType === 'touch' && !e.buttons) return;
-    if (activeMode === 'layers') updateLayers(e.clientX,e.clientY);
-    else updateSimpleTilt(e.clientX,e.clientY);
-  });
-  stage.addEventListener('pointerleave', reset);
-  stage.addEventListener('pointerdown', e => {
-    if (e.pointerType === 'touch') {
-      if (activeMode === 'layers') updateLayers(e.clientX,e.clientY);
-      else updateSimpleTilt(e.clientX,e.clientY);
+  <main class="workspace">
+    <aside class="rail" aria-label="Seções do editor">
+      <div class="rail-heading">Editor da carta</div>
+      <nav class="rail-nav" id="sectionNav">
+        <button class="rail-button active" type="button" data-tab="basic"><span class="rail-icon">01</span>Informações básicas</button>
+        <button class="rail-button" type="button" data-tab="image"><span class="rail-icon">02</span>Imagem & fundo</button>
+        <button class="rail-button" type="button" data-tab="evolution"><span class="rail-icon">03</span>Evolução</button>
+        <button class="rail-button" type="button" data-tab="attributes"><span class="rail-icon">04</span>Atributos</button>
+        <button class="rail-button" type="button" data-tab="attack1"><span class="rail-icon">05</span>Ataque 1</button>
+        <button class="rail-button" type="button" data-tab="attack2"><span class="rail-icon">06</span>Ataque 2</button>
+        <button class="rail-button" type="button" data-tab="footer"><span class="rail-icon">07</span>Parte inferior</button>
+        <button class="rail-button" type="button" data-tab="translations"><span class="rail-icon">08</span>Traduções</button>
+        <button class="rail-button" type="button" data-tab="import"><span class="rail-icon">09</span>Importar / exportar</button>
+      </nav>
+      <div class="rail-bottom">
+        <button class="pill" type="button" id="resetCard">Restaurar padrão</button>
+        <div class="rail-note">Seu rascunho fica neste navegador. Nenhum dado é enviado.</div>
+      </div>
+    </aside>
+
+    <section class="editor-panel" aria-label="Controles de criação">
+      <header class="editor-head">
+        <div><h1 id="editorTitle">Informações básicas</h1><p id="editorSubtitle">Escolha um modelo e personalize os dados da carta.</p></div>
+        <span class="tiny-tag">TCG POCKET</span>
+      </header>
+      <div class="panel-scroll" id="panelScroll">
+        <section class="form-section active" data-panel="basic">
+          <p class="section-kicker">Modelo e identidade</p>
+          <div class="preset-summary"><b id="presetName">TCG Pocket Gold</b><p id="presetDescription">Preset de carta Gold/Coroa. O efeito de paralaxe em camadas está habilitado para esta classe.</p></div>
+          <div class="group">
+            <div class="group-title">Modelo de carta <small>presets de paralaxe</small></div>
+            <div class="field full"><label for="classPreset">Classe de cartão</label><select id="classPreset">
+              <option value="gold">TCG Pocket Gold / Coroa</option>
+              <option value="trainer2">Treinador · 2 estrelas</option>
+              <option value="pokemon2">Pokémon · 2 estrelas</option>
+              <option value="other">Outro modelo · sem paralaxe</option>
+            </select><span class="subhint">A paralaxe só é ativada para Gold/Coroa, Treinador 2 estrelas e Pokémon 2 estrelas.</span></div>
+            <div class="divider"></div>
+            <div class="field-grid">
+              <div class="field"><label for="generation">Geração</label><select id="generation"><option value="pocket">TCG Pocket</option><option value="first">Primeira geração</option><option value="custom">Personalizada</option></select></div>
+              <div class="field"><label for="model">Modelo</label><select id="model"><option value="classic">Clássico</option><option value="full-art">Full Art / Pokémon</option><option value="trainer">Treinador</option><option value="trainer-full-art">Treinador Full Art</option></select></div>
+              <div class="field"><label for="frame">Moldura</label><select id="frame"><option value="crown">Coroa / Gold</option><option value="grey">Cinza</option><option value="black">Preto</option><option value="full-art">Full Art</option><option value="ex">EX</option><option value="ex-full-art">EX Full Art</option><option value="immersive">Imersivo</option><option value="rainbow">Arco-íris</option><option value="shining">Brilhante</option><option value="holo1">Holo nº 1</option><option value="holo2">Holo nº 2</option><option value="holo3">Holo nº 3</option><option value="holo4">Holo nº 4</option></select></div>
+              <div class="field"><label for="rarity">Raridade</label><select id="rarity"><option value="crown">Coroa / Gold</option><option value="diamond-1">1 diamante</option><option value="diamond-2">2 diamantes</option><option value="diamond-3">3 diamantes</option><option value="diamond-4">4 diamantes</option><option value="star-1">1 estrela</option><option value="star-2">2 estrelas</option><option value="star-3">3 estrelas</option><option value="star-4">4 estrelas</option><option value="shiny-1">1 brilhante</option><option value="shiny-2">2 brilhantes</option></select></div>
+              <div class="field"><label for="stage">Estágio</label><select id="stage"><option value="BÁSICO">Básico</option><option value="ESTÁGIO 1">Estágio 1</option><option value="ESTÁGIO 2">Estágio 2</option></select></div>
+              <div class="field"><label for="hp">PS / HP</label><input id="hp" type="number" min="0" max="999" value="150"></div>
+              <div class="field full"><label for="cardName">Nome</label><input id="cardName" type="text" value="Dialga ex" maxlength="32"></div>
+              <div class="field"><label for="prefix">Prefixo</label><input id="prefix" type="text" placeholder="ex.: Mega"></div>
+              <div class="field"><label for="suffix">Sufixo</label><input id="suffix" type="text" placeholder="ex.: ex"></div>
+              <div class="field"><label for="type1">Tipo</label><select id="type1"><option value="metal">Metálico</option><option value="fire">Fogo</option><option value="grass">Grama</option><option value="water">Água</option><option value="electric">Elétrico</option><option value="psychic">Psíquico</option><option value="fighting">Lutador</option><option value="normal">Incolor</option><option value="dark">Escuridão</option><option value="dragon">Dragão</option><option value="steel">Aço</option><option value="fairy">Fada</option></select></div>
+              <div class="field"><label for="type2">Tipo duplo</label><select id="type2"><option value="">Nenhum</option><option value="fire">Fogo</option><option value="grass">Grama</option><option value="water">Água</option><option value="electric">Elétrico</option><option value="psychic">Psíquico</option><option value="fighting">Lutador</option><option value="normal">Incolor</option><option value="dark">Escuridão</option><option value="dragon">Dragão</option><option value="steel">Aço</option><option value="fairy">Fada</option></select></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="form-section" data-panel="image">
+          <p class="section-kicker">Imagem, recorte e foil</p>
+          <div class="group"><div class="group-title">Imagem da carta <small>PNG, JPG ou WEBP</small></div>
+            <label class="upload-drop" for="artUpload"><input id="artUpload" type="file" accept="image/png,image/jpeg,image/webp"><span><span class="upload-symbol">↑</span><strong>Selecionar uma imagem</strong><span>ou arraste e solte uma imagem aqui</span></span></label>
+            <div class="field-grid" style="margin-top:10px">
+              <div class="field full"><label for="artFit">Comportamento da imagem</label><select id="artFit"><option value="cutout">PNG recortado — pode sair da moldura</option><option value="window">Imagem preenchendo a janela</option></select><span class="subhint">O recorte transparente permite que o Pokémon avance sobre a moldura; o efeito fica mais claro com um PNG com transparência.</span></div>
+              <div class="field full"><label for="artZoom">Zoom da imagem <output id="artZoomValue">85%</output></label><input id="artZoom" type="range" min="70" max="140" value="85"></div>
+              <div class="field"><label for="artX">Deslocamento horizontal</label><input id="artX" type="range" min="-20" max="20" value="0"></div>
+              <div class="field"><label for="artY">Deslocamento vertical</label><input id="artY" type="range" min="-20" max="20" value="0"></div>
+              <div class="field"><label for="backgroundColor">Cor de fundo</label><input id="backgroundColor" type="color" value="#54a8e7"></div>
+              <div class="field"><label for="illustrator">Ilustrador</label><input id="illustrator" type="text" value="PTCGP Card Studio"></div>
+            </div>
+          </div>
+          <div class="group"><div class="group-title">Efeitos visuais <small>máximo 5</small></div><div class="effect-top"><span>Selecione overlays para a arte</span><span id="effectCount">0 / 5</span></div><div class="effect-grid" id="effectGrid"></div><p class="microcopy">Os efeitos escolhidos são camadas visuais. A paralaxe em camadas continua limitada às três classes autorizadas.</p></div>
+        </section>
+
+        <section class="form-section" data-panel="evolution">
+          <p class="section-kicker">Linha evolutiva</p>
+          <div class="group"><div class="group-title">Evolução <small>opcional</small></div><div class="field-grid"><div class="field"><label for="evolutionStage">Estágio desta carta</label><select id="evolutionStage"><option>Básico</option><option>Estágio 1</option><option>Estágio 2</option></select></div><div class="field"><label for="evolutionFrom">Evolui de</label><input id="evolutionFrom" type="text" placeholder="Nome da carta anterior"></div><div class="field full"><label for="evolutionImage">Imagem de evolução</label><label class="upload-drop"><input id="evolutionImage" type="file" accept="image/*"><span><span class="upload-symbol">↑</span><strong>Selecionar uma imagem</strong><span>Opcional — o preview principal não será substituído</span></span></label></div></div></div>
+        </section>
+
+        <section class="form-section" data-panel="attributes">
+          <p class="section-kicker">Dados da Pokédex</p>
+          <div class="group"><div class="group-title">Atributos da carta</div><div class="field-grid"><div class="field"><label for="dexNumber">Número</label><input id="dexNumber" type="text" placeholder="ex.: 0484"></div><div class="field"><label for="category">Categoria</label><input id="category" type="text" placeholder="Pokémon Temporal"></div><div class="field"><label for="height">Altura</label><input id="height" type="text" placeholder="ex.: 5,4 m"></div><div class="field"><label for="weight">Peso</label><input id="weight" type="text" placeholder="ex.: 683 kg"></div><div class="field"><label for="attributeFrame">Moldura de atributo</label><select id="attributeFrame"><option value="grey">Cinza</option><option value="shining">Brilhante</option><option value="black">Preto</option><option value="mega">Mega</option></select></div><div class="field"><label for="customAttribute">Personalizado</label><input id="customAttribute" type="text" placeholder="Texto livre"></div></div></div>
+        </section>
+
+        <section class="form-section" data-panel="attack1">
+          <p class="section-kicker">Ataque 1</p>
+          <div class="group"><div class="group-title">Ataque / habilidade</div><div class="field-grid"><div class="field full"><label for="attack1Name">Nome</label><input id="attack1Name" type="text" value="Turbo Metálico"></div><div class="field"><label for="attack1Damage">Dano</label><input id="attack1Damage" type="text" value="30"></div><div class="field"><label for="attack1Cost">Custo de energia</label><select id="attack1Cost"><option value="2">2 energias</option><option value="1">1 energia</option><option value="3">3 energias</option><option value="4">4 energias</option><option value="0">Sem custo</option></select></div><div class="field full"><label for="attack1Info">Informação</label><textarea id="attack1Info">Pegue 2 energias metálicas da sua Zona de Energia e anexe-as a 1 dos seus Pokémon no Banco.</textarea></div></div></div>
+        </section>
+
+        <section class="form-section" data-panel="attack2">
+          <p class="section-kicker">Ataque 2</p>
+          <div class="group"><div class="group-title">Ataque / habilidade</div><div class="field-grid"><div class="field full"><label for="attack2Name">Nome</label><input id="attack2Name" type="text" value="Impacto Pesado"></div><div class="field"><label for="attack2Damage">Dano</label><input id="attack2Damage" type="text" value="100"></div><div class="field"><label for="attack2Cost">Custo de energia</label><select id="attack2Cost"><option value="4">4 energias</option><option value="1">1 energia</option><option value="2">2 energias</option><option value="3">3 energias</option><option value="0">Sem custo</option></select></div><div class="field full"><label for="attack2Info">Informação</label><textarea id="attack2Info" placeholder="Descrição opcional do ataque"></textarea></div></div></div>
+        </section>
+
+        <section class="form-section" data-panel="footer">
+          <p class="section-kicker">Parte inferior da carta</p>
+          <div class="group"><div class="group-title">Fraqueza, recuo e descrição</div><div class="field-grid"><div class="field"><label for="weakness">Tipo de fraqueza</label><select id="weakness"><option value="fire">Fogo</option><option value="grass">Grama</option><option value="water">Água</option><option value="electric">Elétrico</option><option value="psychic">Psíquico</option><option value="fighting">Lutador</option><option value="normal">Incolor</option><option value="dark">Escuridão</option><option value="dragon">Dragão</option><option value="steel">Aço</option><option value="fairy">Fada</option></select></div><div class="field"><label for="weaknessAmount">Quantidade</label><input id="weaknessAmount" type="text" value="+20"></div><div class="field"><label for="retreat">Retirada</label><select id="retreat"><option value="1">1 energia</option><option value="2">2 energias</option><option value="3">3 energias</option><option value="4">4 energias</option><option value="5">5 energias</option></select></div><div class="field"><label for="exRule">Regra EX</label><select id="exRule"><option value="">Nenhuma</option><option value="ex">ex</option><option value="mega-ex">mega-ex</option></select></div><div class="field full"><label for="flavor">Descrição</label><textarea id="flavor" placeholder="Texto de ambiente da carta"></textarea></div><div class="field"><label for="setNumber">Número do set</label><input id="setNumber" type="text" placeholder="ex.: 012/226"></div><div class="field"><label for="regulation">Marca de regulação</label><input id="regulation" type="text" placeholder="ex.: A"></div></div></div>
+        </section>
+
+        <section class="form-section" data-panel="translations">
+          <p class="section-kicker">Rótulos da carta</p>
+          <div class="group"><div class="group-title">Traduções e textos de interface</div><div class="field-grid"><div class="field"><label for="labelStage">Etiqueta de estágio</label><input id="labelStage" type="text" value="BÁSICO"></div><div class="field"><label for="labelHp">Etiqueta de PS</label><input id="labelHp" type="text" value="PS"></div><div class="field"><label for="labelWeakness">Etiqueta de fraqueza</label><input id="labelWeakness" type="text" value="Fraqueza"></div><div class="field"><label for="labelRetreat">Etiqueta de retirada</label><input id="labelRetreat" type="text" value="Recuo"></div><div class="field full"><label for="customText">Texto personalizado</label><textarea id="customText" placeholder="Opcional"></textarea></div></div></div>
+        </section>
+
+        <section class="form-section" data-panel="import">
+          <p class="section-kicker">Portabilidade</p>
+          <div class="group"><div class="group-title">Importar / exportar conteúdo</div><p class="microcopy">O arquivo JSON guarda os textos e as opções da carta, mas não incorpora a imagem escolhida. A imagem permanece neste navegador enquanto a página estiver aberta.</p><div class="panel-actions"><button class="small-button" id="exportJson" type="button">Exportar JSON</button><label class="small-button" for="importJson" style="text-align:center;cursor:pointer">Importar JSON<input id="importJson" class="hidden-file" type="file" accept="application/json"></label></div><div class="divider"></div><button class="pill primary" type="button" id="downloadPng2" style="width:100%">Baixar imagem PNG</button></div>
+          <div class="group"><div class="group-title">Rascunho local</div><p class="microcopy">Salvar rascunho grava somente os campos desta carta no armazenamento local do navegador. Não há login nem envio para um servidor.</p><button class="small-button" type="button" id="saveCard2">Salvar agora</button></div>
+        </section>
+      </div>
+    </section>
+
+    <section class="preview-panel" aria-label="Pré-visualização da carta">
+      <header class="preview-head"><div class="preview-head-left"><div class="preview-title">Pré-visualização</div><div class="preview-subtitle" id="previewKind">Carta TCG Pocket · Gold</div></div><label class="preview-zoom" for="previewZoom">Zoom<input id="previewZoom" type="range" min="65" max="115" value="100"><output id="previewZoomValue">100%</output></label></header>
+      <div class="preview-canvas">
+        <div class="card-stage" id="cardStage" data-parallax="true" data-model="classic" data-fit="cutout" aria-label="Pré-visualização da carta">
+          <div class="card-body-perspective"><div class="card-body" id="cardBody">
+            <div class="card-bg-window" id="cardBgWindow"><div class="card-back-color" id="cardBackColor"></div><div class="card-bg" id="cardBg"></div></div>
+            <div class="card-border-back"></div>
+            <div class="art-window" id="artWindow"><img id="windowArt" src="./example.png" alt="Ilustração da carta"></div>
+            <img class="card-art-cutout" id="cardArt" src="./example.png" alt="Ilustração recortada">
+            <img class="card-frame" id="cardFrame" src="./crown.webp" alt="Moldura Gold">
+            <div class="card-decor"></div>
+            <div class="card-grad" id="cardGrad"></div>
+            <div class="selected-effects" id="selectedEffects"></div>
+            <div class="card-glare"></div>
+          </div></div>
+          <div class="card-copy-perspective"><div class="card-copy" id="cardCopy">
+            <header class="card-head"><div class="card-name-block"><span class="card-stage-label" id="cardStageLabel">BÁSICO</span><span class="card-name" id="cardNamePreview">Dialga ex</span></div><div class="card-hp"><span id="cardHpLabel">PS</span><strong id="cardHpPreview">150</strong><img class="card-type-symbol" id="cardTypeSymbol" src="./steel.webp" alt="Metálico"></div></header>
+            <div class="trainer-description" id="trainerDescription">Treinador — escolha uma descrição na parte inferior do editor.</div>
+            <section class="card-attack-area" id="cardAttacks"><div class="attack-row"><span class="attack-energy" id="attack1Energy"></span><span class="attack-title" id="attack1NamePreview">Turbo Metálico</span><span class="attack-damage" id="attack1DamagePreview">30</span><span class="attack-description" id="attack1InfoPreview">Pegue 2 energias metálicas da sua Zona de Energia e anexe-as a 1 dos seus Pokémon no Banco.</span></div><div class="attack-row"><span class="attack-energy" id="attack2Energy"></span><span class="attack-title" id="attack2NamePreview">Impacto Pesado</span><span class="attack-damage" id="attack2DamagePreview">100</span><span class="attack-description" id="attack2InfoPreview"></span></div></section>
+            <div class="card-bottom"><img src="./card-bottom-pt.webp" alt=""><div class="card-bottom-meta"><span id="cardWeaknessPreview">Fraqueza: Fogo +20</span><br><span id="cardRetreatPreview">Recuo: 1</span><br><span id="cardRarityPreview">Coroa / Gold</span></div></div>
+          </div></div>
+        </div>
+      </div>
+      <footer class="preview-footer"><div class="class-status" id="classStatus"><b>Classe ativa:</b> <span>TCG Pocket Gold</span><br><span class="on">Paralaxe em camadas habilitada</span></div><div class="preview-tools"><button class="icon-btn" id="resetMotion" type="button" title="Centralizar carta" aria-label="Centralizar carta">⟳</button><button class="pill primary" id="downloadPng3" type="button">Baixar PNG</button></div></footer>
+    </section>
+  </main>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+  (()=>{
+    'use strict';
+    const $=id=>document.getElementById(id);
+    const stage=$('cardStage'),body=$('cardBody'),copy=$('cardCopy'),bg=$('cardBg'),grad=$('cardGrad'),art=$('cardArt'),windowArt=$('windowArt');
+    const frameFiles={grey:'grey.webp',black:'black-ex.webp','full-art':'full-art.webp',ex:'ex-frame.webp','ex-full-art':'ex-full-art.webp',immersive:'immersive.webp',rainbow:'rainbow.webp',crown:'crown.webp',shining:'shining.webp',holo1:'holo1.webp',holo2:'holo2.webp',holo3:'holo3.webp',holo4:'holo4.webp'};
+    const typeFiles={fire:'fire.webp',grass:'grass.webp',water:'water.webp',electric:'electric.webp',psychic:'psychic.webp',fighting:'fighting.webp',normal:'normal.webp',dark:'dark.webp',dragon:'dragon.webp',steel:'steel.webp',fairy:'fairy.webp',metal:'steel.webp',colorless:'colorless.webp'};
+    const typeNames={fire:'Fogo',grass:'Grama',water:'Água',electric:'Elétrico',psychic:'Psíquico',fighting:'Lutador',normal:'Incolor',dark:'Escuridão',dragon:'Dragão',steel:'Aço',fairy:'Fada',metal:'Metálico',colorless:'Incolor'};
+    const effects=[['Tera','fx-tera.webp'],...Array.from({length:5},(_,i)=>[`Trovão ${i+1}`,`fx-thunder-${i+1}.webp`]),...Array.from({length:4},(_,i)=>[`Chama ${i+1}`,`fx-flame-${i+1}.webp`]),['Água 1','fx-water-1.webp'],...Array.from({length:2},(_,i)=>[`Gelo ${i+1}`,`fx-ice-${i+1}.webp`]),...Array.from({length:5},(_,i)=>[`Rocha ${i+1}`,`fx-rock-${i+1}.webp`]),...Array.from({length:6},(_,i)=>[`Folha ${i+1}`,`fx-leaf-${i+1}.webp`]),...Array.from({length:5},(_,i)=>[`Brilho ${i+1}`,`fx-sparkle-${i+1}.webp`]),['Trevas 1','fx-dark-1.webp'],...Array.from({length:4},(_,i)=>[`Arco-íris ${i+1}`,`fx-rainbow-${i+1}.webp`]),...Array.from({length:16},(_,i)=>[`Abstrato ${i+1}`,`fx-abstract-${i+1}.webp`])];
+    const selectedFx=new Set();let raf=0,activeTab='basic',toastTimer=0,artObjectUrl=null;
+    const fieldIds=['generation','model','frame','rarity','stage','hp','cardName','prefix','suffix','type1','type2','artFit','artZoom','artX','artY','backgroundColor','illustrator','attack1Name','attack1Damage','attack1Cost','attack1Info','attack2Name','attack2Damage','attack2Cost','attack2Info','weakness','weaknessAmount','retreat','exRule','flavor','setNumber','regulation','dexNumber','category','height','weight','attributeFrame','customAttribute','evolutionStage','evolutionFrom','labelStage','labelHp','labelWeakness','labelRetreat','customText'];
+    const tabs={basic:['Informações básicas','Escolha um modelo e personalize os dados da carta.'],image:['Imagem & fundo','Adicione a ilustração e escolha efeitos visuais.'],evolution:['Evolução','Defina o estágio e a carta anterior.'],attributes:['Atributos','Edite dados da Pokédex e a moldura do atributo.'],attack1:['Ataque 1','Configure o primeiro ataque ou habilidade.'],attack2:['Ataque 2','Configure o segundo ataque ou habilidade.'],footer:['Parte inferior do cartão','Ajuste fraqueza, retirada, regra e descrição.'],translations:['Traduções','Edite os rótulos mostrados na carta.'],import:['Importar / exportar','Transfira os campos de texto e baixe a imagem.']};
+    function toast(message){const t=$('toast');t.textContent=message;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),2400)}
+    function clamp(n,min,max){return Math.min(Math.max(n,min),max)}
+    function setTab(name){activeTab=name;document.querySelectorAll('.rail-button').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));document.querySelectorAll('.form-section').forEach(p=>p.classList.toggle('active',p.dataset.panel===name));$('editorTitle').textContent=tabs[name][0];$('editorSubtitle').textContent=tabs[name][1];$('panelScroll')?.scrollTo(0,0)}
+    document.querySelectorAll('.rail-button').forEach(b=>b.addEventListener('click',()=>setTab(b.dataset.tab)));
+    function applyPreset(value){
+      const set=(id,v)=>$(id).value=v;
+      if(value==='gold'){set('generation','pocket');set('model','classic');set('frame','crown');set('rarity','crown');set('type1','steel');set('cardName','Dialga ex');set('hp','150');set('attack1Name','Turbo Metálico');set('attack1Damage','30');set('attack2Name','Impacto Pesado');set('attack2Damage','100');}
+      if(value==='trainer2'){set('generation','pocket');set('model','trainer-full-art');set('frame','full-art');set('rarity','star-2');set('type1','psychic');set('cardName','Treinadora');set('hp','');set('attack1Name','');set('attack1Damage','');set('attack2Name','');set('attack2Damage','');}
+      if(value==='pokemon2'){set('generation','pocket');set('model','full-art');set('frame','full-art');set('rarity','star-2');set('type1','fire');set('cardName','Pokémon');set('hp','120');set('attack1Name','Ataque especial');set('attack1Damage','80');set('attack2Name','');set('attack2Damage','');}
+      if(value==='other'){set('generation','pocket');set('model','classic');set('frame','grey');set('rarity','diamond-1');set('type1','grass');set('cardName','Nova carta');set('hp','90');}
+      applyDefaultEffects(value);updatePreview();
     }
-  });
-  document.querySelectorAll('.controls button').forEach(button => button.addEventListener('click', () => {
-    activeMode = button.dataset.mode;
-    demo.classList.remove('mode-tilt','mode-layers','mode-holo');
-    demo.classList.add(`mode-${activeMode}`);
-    document.querySelectorAll('.controls button').forEach(b => b.setAttribute('aria-pressed',String(b===button)));
-    reset();
-  }));
-  function setZoom(value) {
-    const scale = Number(value)/100;
-    art.style.transform = `translate(-50%, -50%) scale(${scale}) translateX(0%) translateY(0%)`;
-    zoomValue.value = `${value}%`;
-    zoomValue.textContent = `${value}%`;
-  }
-  zoomRange.addEventListener('input',e => setZoom(e.target.value));
-  setZoom(zoomRange.value);
-})();
-</script>
+    function applyDefaultEffects(value){selectedFx.clear();const presets={gold:['fx-rainbow-1.webp','fx-sparkle-1.webp'],trainer2:['fx-sparkle-1.webp','fx-rainbow-3.webp'],pokemon2:['fx-sparkle-2.webp','fx-abstract-4.webp'],other:[]};(presets[value]||[]).forEach(x=>selectedFx.add(x));renderEffects();}
+    $('classPreset').addEventListener('change',e=>applyPreset(e.target.value));
+    function computeClass(){
+      const gen=$('generation').value,model=$('model').value,frame=$('frame').value,rarity=$('rarity').value;
+      if(gen!=='pocket')return null;
+      if(frame==='crown'&&rarity==='crown'&&model==='classic')return 'gold';
+      if(model==='trainer-full-art'&&frame==='full-art'&&rarity==='star-2')return 'trainer2';
+      if(model==='full-art'&&frame==='full-art'&&rarity==='star-2')return 'pokemon2';
+      return null;
+    }
+    function currentFrame(){return frameFiles[$('frame').value]||'grey.webp'}
+    function rarityLabel(v){const opt=$('rarity').selectedOptions[0];return opt?opt.text:v}
+    function drawEnergy(targetId,count){const target=$(targetId);target.innerHTML='';const n=clamp(Number(count)||0,0,5);for(let i=0;i<n;i++){const img=document.createElement('img');img.src='./'+(typeFiles[$('type1').value]||typeFiles.colorless);img.alt='';target.appendChild(img)}}
+    function renderEffects(){
+      const grid=$('effectGrid');if(!grid)return;grid.innerHTML='';
+      for(const [label,file] of effects){const labelEl=document.createElement('label');labelEl.className='effect-option'+(selectedFx.has(file)?' selected':'');labelEl.title=label;labelEl.innerHTML=`<input type="checkbox" ${selectedFx.has(file)?'checked':''}><img loading="lazy" src="./${file}" alt=""><span>${label}</span>`;labelEl.addEventListener('click',e=>{e.preventDefault();if(selectedFx.has(file))selectedFx.delete(file);else if(selectedFx.size<5)selectedFx.add(file);else{toast('Você pode selecionar até 5 efeitos.');return}renderEffects();updateSelectedEffectLayers()});grid.appendChild(labelEl)}
+      $('effectCount').textContent=`${selectedFx.size} / 5`;updateSelectedEffectLayers();
+    }
+    function updateSelectedEffectLayers(){const box=$('selectedEffects');box.innerHTML='';for(const file of selectedFx){const im=document.createElement('img');im.src='./'+file;im.alt='';box.appendChild(im)}$('effectCount').textContent=`${selectedFx.size} / 5`}
+    function updatePreview(){
+      const cls=computeClass(),isActive=Boolean(cls),model=$('model').value;
+      stage.dataset.parallax=String(isActive);stage.dataset.model=model;stage.dataset.fit=$('artFit').value;
+      body.dataset.parallax=String(isActive);copy.dataset.parallax=String(isActive);
+      $('cardFrame').src='./'+currentFrame();$('cardFrame').alt='Moldura '+$('frame').selectedOptions[0].text;
+      $('cardStageLabel').textContent=$('labelStage').value||$('stage').value||'BÁSICO';
+      const name=[ $('prefix').value.trim(), $('cardName').value.trim(), $('suffix').value.trim() ].filter(Boolean).join(' ');
+      $('cardNamePreview').textContent=name||'Nome da carta';$('cardHpPreview').textContent=$('hp').value||'';$('cardHpLabel').textContent=$('labelHp').value||'PS';
+      const type=$('type1').value;const icon=$('cardTypeSymbol');icon.src='./'+(typeFiles[type]||typeFiles.colorless);icon.alt=typeNames[type]||'Tipo';
+      $('cardRarityPreview').textContent=rarityLabel($('rarity').value);$('cardWeaknessPreview').textContent=`${$('labelWeakness').value||'Fraqueza'}: ${typeNames[$('weakness').value]||'Fogo'} ${$('weaknessAmount').value||''}`;
+      $('cardRetreatPreview').textContent=`${$('labelRetreat').value||'Recuo'}: ${$('retreat').value||1}`;
+      $('attack1NamePreview').textContent=$('attack1Name').value||'Ataque';$('attack1DamagePreview').textContent=$('attack1Damage').value||'';$('attack1InfoPreview').textContent=$('attack1Info').value||'';
+      $('attack2NamePreview').textContent=$('attack2Name').value||'';$('attack2DamagePreview').textContent=$('attack2Damage').value||'';$('attack2InfoPreview').textContent=$('attack2Info').value||'';
+      drawEnergy('attack1Energy',$('attack1Cost').value);drawEnergy('attack2Energy',$('attack2Cost').value);
+      $('trainerDescription').textContent=$('flavor').value||$('attack1Info').value||'Treinador — edite a descrição no painel.';
+      $('cardBackColor').style.background=$('backgroundColor').value;
+      $('cardStage').style.setProperty('--art-zoom',String(Number($('artZoom').value||100)/100));$('cardStage').style.setProperty('--art-x',`${$('artX').value||0}%`);$('cardStage').style.setProperty('--art-y',`${$('artY').value||0}%`);
+      $('artZoomValue').textContent=`${$('artZoom').value||100}%`;
+      if($('artFit').value==='cutout'){$('artWindow').style.display='none';art.style.display='block'}else{$('artWindow').style.display='block';art.style.display='none'}
+      if(cls==='gold'){
+        $('presetName').textContent='TCG Pocket Gold';$('presetDescription').textContent='TCG Pocket com moldura Coroa/Gold. Paralaxe em camadas habilitada.';$('previewKind').textContent='TCG Pocket · Gold / Coroa';$('classStatus').innerHTML='<b>Classe ativa:</b> <span>TCG Pocket Gold</span><br><span class="on">Paralaxe em camadas habilitada</span>';
+      }else if(cls==='trainer2'){
+        $('presetName').textContent='Treinador · 2 estrelas';$('presetDescription').textContent='Modelo Treinador Full Art com raridade de duas estrelas. Paralaxe habilitada.';$('previewKind').textContent='TCG Pocket · Treinador · 2 estrelas';$('classStatus').innerHTML='<b>Classe ativa:</b> <span>Treinador · 2 estrelas</span><br><span class="on">Paralaxe em camadas habilitada</span>';
+      }else if(cls==='pokemon2'){
+        $('presetName').textContent='Pokémon · 2 estrelas';$('presetDescription').textContent='Modelo Full Art de Pokémon com raridade de duas estrelas. Paralaxe habilitada.';$('previewKind').textContent='TCG Pocket · Pokémon · 2 estrelas';$('classStatus').innerHTML='<b>Classe ativa:</b> <span>Pokémon · 2 estrelas</span><br><span class="on">Paralaxe em camadas habilitada</span>';
+      }else{
+        $('presetName').textContent='Modelo sem paralaxe';$('presetDescription').textContent='O preview permanece estático para esta combinação de geração, modelo, moldura e raridade.';$('previewKind').textContent=`${$('generation').selectedOptions[0].text} · ${$('model').selectedOptions[0].text}`;$('classStatus').innerHTML='<b>Classe ativa:</b> <span>Outro modelo</span><br><span>Paralaxe desativada para esta combinação</span>';
+      }
+      if(cls){$('classPreset').value=cls}else if($('classPreset').value!=='other')$('classPreset').value='other';
+      resetMotion();
+    }
+    function resetMotion(){body.style.transform='';copy.style.transform='';body.removeAttribute('data-active');copy.removeAttribute('data-active');bg.style.backgroundPosition='';grad.style.backgroundPosition='';stage.style.setProperty('--px','50%');stage.style.setProperty('--py','50%')}
+    function updateLayers(clientX,clientY){
+      if(stage.dataset.parallax!=='true')return;
+      const r=stage.getBoundingClientRect(),w=r.width,h=r.height,offsetX=clientX-r.left,offsetY=clientY-r.top;
+      const x=clamp(w/2+(offsetX-w/2)*1.5,0,w),y=clamp(h/2+(offsetY-h/2)*1.5,0,h);
+      const n=Math.abs(Math.floor(100/w*x)-100),o=Math.abs(Math.floor(100/h*y)-100);
+      const mx=50+(n-50)/1.5,my=50+(o-50)/1.5,rx=-((my-50)/2),ry=((mx-50)/1.5*.5);
+      const bgPos=`${50+(n-50)/2}% ${50+(o-50)/2}%`,gradPos=`${mx}% ${my}%`;
+      cancelAnimationFrame(raf);raf=requestAnimationFrame(()=>{const t=`rotateX(${rx}deg) rotateY(${ry}deg)`;body.style.transform=t;copy.style.transform=t;body.dataset.active='true';copy.dataset.active='true';bg.style.backgroundPosition=`${bgPos}, ${bgPos}`;grad.style.backgroundPosition=gradPos;stage.style.setProperty('--px',`${offsetX/w*100}%`);stage.style.setProperty('--py',`${offsetY/h*100}%`);stage.style.setProperty('--holo-x',`${mx}%`);stage.style.setProperty('--holo-y',`${my}%`)})
+    }
+    stage.addEventListener('pointermove',e=>{if(e.pointerType==='touch'&&!e.buttons)return;updateLayers(e.clientX,e.clientY)});stage.addEventListener('pointerleave',resetMotion);stage.addEventListener('pointerdown',e=>{if(e.pointerType==='touch')updateLayers(e.clientX,e.clientY)});$('resetMotion').addEventListener('click',resetMotion);
+    for(const id of fieldIds){const el=$(id);if(!el)continue;el.addEventListener('input',updatePreview);el.addEventListener('change',updatePreview)}
+    $('model').addEventListener('change',()=>{if($('model').value==='trainer'||$('model').value==='trainer-full-art'){$('cardName').placeholder='Nome do Treinador'}updatePreview()});
+    $('artUpload').addEventListener('change',e=>{const file=e.target.files&&e.target.files[0];if(!file)return;if(artObjectUrl)URL.revokeObjectURL(artObjectUrl);artObjectUrl=URL.createObjectURL(file);art.src=artObjectUrl;windowArt.src=artObjectUrl;toast('Imagem carregada no preview.')});
+    const uploadDrop=document.querySelector('.upload-drop');uploadDrop.addEventListener('dragover',e=>{e.preventDefault();uploadDrop.classList.add('dragging')});uploadDrop.addEventListener('dragleave',()=>uploadDrop.classList.remove('dragging'));uploadDrop.addEventListener('drop',e=>{e.preventDefault();uploadDrop.classList.remove('dragging');const f=e.dataTransfer.files[0];if(f&&f.type.startsWith('image/')){if(artObjectUrl)URL.revokeObjectURL(artObjectUrl);artObjectUrl=URL.createObjectURL(f);art.src=artObjectUrl;windowArt.src=artObjectUrl;toast('Imagem carregada no preview.')}});
+    $('previewZoom').addEventListener('input',e=>{const v=Number(e.target.value);$('previewZoomValue').textContent=`${v}%`;stage.style.width=`min(${v}%, 410px)`});
+    function state(includeImage=false){const out={};for(const id of fieldIds){const el=$(id);if(el)out[id]=el.value}out.classPreset=$('classPreset').value;out.selectedEffects=[...selectedFx];out.imageMode=$('artFit').value;if(includeImage&&artObjectUrl)out.image=artObjectUrl;return out}
+    function applyState(data){for(const [key,val] of Object.entries(data||{})){if(key==='selectedEffects'||key==='image'||key==='imageMode')continue;const el=$(key);if(el)el.value=val}if(Array.isArray(data.selectedEffects)){selectedFx.clear();data.selectedEffects.slice(0,5).forEach(x=>selectedFx.add(x))}renderEffects();updatePreview()}
+    function saveDraft(){localStorage.setItem('ptcgp-card-studio-draft',JSON.stringify(state()));toast('Rascunho salvo neste navegador.')}
+    $('saveCard').addEventListener('click',saveDraft);$('saveCard2').addEventListener('click',saveDraft);
+    $('resetCard').addEventListener('click',()=>{if(!confirm('Restaurar os valores padrão desta carta?'))return;document.querySelectorAll('input,textarea').forEach(e=>{if(e.type==='file')e.value=''});$('classPreset').value='gold';applyPreset('gold');toast('Valores padrão restaurados.')});
+    $('exportJson').addEventListener('click',()=>downloadBlob(new Blob([JSON.stringify(state(),null,2)],{type:'application/json'}),'carta-ptcgp.json'));
+    $('importJson').addEventListener('change',async e=>{const f=e.target.files&&e.target.files[0];if(!f)return;try{applyState(JSON.parse(await f.text()));toast('Conteúdo importado. Selecione a imagem novamente.')}catch{toast('Não foi possível ler esse JSON.')}});
+    function downloadBlob(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1500)}
+    function loadImage(src){return new Promise((resolve,reject)=>{const im=new Image();im.onload=()=>resolve(im);im.onerror=reject;im.src=src})}
+    function roundRect(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath()}
+    function drawFit(ctx,img,x,y,w,h,mode='contain',zoom=1,px=0,py=0){let iw=img.width,ih=img.height,scale=mode==='cover'?Math.max(w/iw,h/ih):Math.min(w/iw,h/ih);scale*=zoom;const dw=iw*scale,dh=ih*scale;ctx.drawImage(img,x+(w-dw)/2+px,y+(h-dh)/2+py,dw,dh)}
+    async function renderCardPng(){
+      const W=720,H=1005,canvas=document.createElement('canvas');canvas.width=W;canvas.height=H;const ctx=canvas.getContext('2d');
+      ctx.save();roundRect(ctx,0,0,W,H,54);ctx.clip();ctx.fillStyle=$('backgroundColor').value;ctx.fillRect(0,0,W,H);
+      try{const bg2=await loadImage('./card-bg-2.webp');ctx.drawImage(bg2,0,0,W,H)}catch{}
+      try{const bg1=await loadImage('./card-bg.webp');ctx.globalAlpha=.85;ctx.drawImage(bg1,0,0,W,H);ctx.globalAlpha=1}catch{}
+      try{const artImage=await loadImage(art.src);if($('artFit').value==='cutout'){drawFit(ctx,artImage,-24,-28,W+48,H+56,'contain',Number($('artZoom').value)/100,Number($('artX').value)*2,Number($('artY').value)*2)}else{ctx.save();roundRect(ctx,55,128,W-110,640,9);ctx.clip();drawFit(ctx,artImage,55,128,W-110,640,'cover',Number($('artZoom').value)/100);ctx.restore()}}catch{}
+      try{const border=await loadImage('./card-border.webp');ctx.drawImage(border,-3,-3,W+6,H+6)}catch{}
+      try{const frame=await loadImage('./'+currentFrame());ctx.drawImage(frame,0,0,W,H)}catch{}
+      try{const decor=await loadImage('./card-decor.webp');ctx.globalAlpha=.55;ctx.drawImage(decor,-8,-12,W+16,H+24);ctx.globalAlpha=1}catch{}
+      for(const file of selectedFx){try{const fx=await loadImage('./'+file);ctx.save();ctx.globalCompositeOperation='screen';ctx.globalAlpha=.26;ctx.drawImage(fx,0,0,W,H);ctx.restore()}catch{}}
+      const name=[ $('prefix').value.trim(),$('cardName').value.trim(),$('suffix').value.trim() ].filter(Boolean).join(' ')||'Nome da carta';
+      const trainer=$('model').value.startsWith('trainer');
+      ctx.textAlign='left';ctx.textBaseline='alphabetic';ctx.font='700 26px Cabinet, sans-serif';ctx.lineWidth=7;ctx.strokeStyle='#fff';ctx.fillStyle='#182033';ctx.strokeText(name,84,81,430);ctx.fillText(name,84,81,430);
+      ctx.font='700 15px Cabinet, sans-serif';ctx.fillStyle='#252b39';ctx.fillText($('labelStage').value||$('stage').value,34,79);
+      if(!trainer){ctx.textAlign='right';ctx.font='700 21px Cabinet,sans-serif';ctx.fillStyle='#182033';ctx.fillText($('labelHp').value||'PS',610,65);ctx.font='700 42px Cabinet,sans-serif';ctx.lineWidth=8;ctx.strokeStyle='#fff';ctx.strokeText($('hp').value||'',610,108);ctx.fillText($('hp').value||'',610,108);try{const icon=await loadImage('./'+(typeFiles[$('type1').value]||typeFiles.colorless));ctx.drawImage(icon,637,43,52,52)}catch{}}
+      try{const energy=await loadImage('./'+(typeFiles[$('type1').value]||typeFiles.colorless));for(let i=0;i<Number($('attack1Cost').value);i++)ctx.drawImage(energy,56+i*37,660,31,31);for(let i=0;i<Number($('attack2Cost').value);i++)ctx.drawImage(energy,56+i*37,810,31,31)}catch{}
+      ctx.textAlign='left';ctx.font='700 27px Cabinet,sans-serif';ctx.fillStyle='#1d2434';ctx.fillText($('attack1Name').value||'Ataque',147,684,400);ctx.textAlign='right';ctx.font='700 31px Cabinet,sans-serif';ctx.fillText($('attack1Damage').value||'',657,684);ctx.textAlign='left';ctx.font='600 18px Matter,sans-serif';ctx.fillText($('attack1Info').value||'',60,719,590);
+      ctx.textAlign='left';ctx.font='700 27px Cabinet,sans-serif';ctx.fillText($('attack2Name').value||'',147,836,400);ctx.textAlign='right';ctx.font='700 31px Cabinet,sans-serif';ctx.fillText($('attack2Damage').value||'',657,836);ctx.textAlign='left';ctx.font='600 18px Matter,sans-serif';ctx.fillText($('attack2Info').value||'',60,868,590);
+      try{const footer=await loadImage('./card-bottom-pt.webp');ctx.drawImage(footer,26,884,668,112)}catch{}
+      ctx.font='700 15px Cabinet,sans-serif';ctx.fillStyle='#1d2434';ctx.textAlign='left';ctx.fillText(`${$('labelWeakness').value||'Fraqueza'}: ${typeNames[$('weakness').value]||'Fogo'} ${$('weaknessAmount').value||''}`,45,930);ctx.fillText(`${$('labelRetreat').value||'Recuo'}: ${$('retreat').value||1}`,45,957);ctx.textAlign='right';ctx.fillText($('illustrator').value||'',672,976);ctx.fillText(rarityLabel($('rarity').value),672,995);
+      ctx.restore();canvas.toBlob(blob=>{if(blob)downloadBlob(blob,'carta-tcg-pocket.png');else toast('Não foi possível criar o PNG.')},'image/png');
+    }
+    ['downloadPng','downloadPng2','downloadPng3'].forEach(id=>$(id).addEventListener('click',renderCardPng));
+    $('backgroundColor').addEventListener('input',()=>{$('cardBackColor').style.background=$('backgroundColor').value});
+    // Efeito apontado pelo usuário: só responde nas 3 combinações aprovadas.
+    // Fórmula de camada reaproveitada do demo anterior: tilt máximo aproximado 16,67° / 11,11°.
+    const saved=localStorage.getItem('ptcgp-card-studio-draft');if(saved){try{applyState(JSON.parse(saved))}catch{$('classPreset').value='gold';applyPreset('gold')}}else{$('classPreset').value='gold';applyPreset('gold')}
+  })();
+  </script>
 </body>
 </html>
