@@ -3,136 +3,262 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Carta Pokémon — paralaxe</title>
+<title>Carta Pokémon — paralaxe em camadas</title>
 <style>
-  :root { color-scheme: dark; --gold:#ffd76a; }
+  :root { color-scheme:dark; --gold:#ffe65c; --card-w:405px; --card-h:566px; }
   * { box-sizing:border-box; }
   body {
-    margin:0; min-height:100svh; display:grid; place-items:center; padding:24px;
-    background:radial-gradient(ellipse at 50% 38%, #222332 0, #11121a 44%, #08090e 100%);
-    color:#fff; font:14px/1.4 system-ui,-apple-system,Segoe UI,sans-serif;
+    margin:0; min-height:100svh; padding:24px 16px; display:grid; place-items:center;
+    background:#0d0d16; color:#f7f5f7; font:14px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;
   }
-  .demo { display:grid; justify-items:center; gap:18px; }
-  .card-stage { width:min( min(78vw, 405px), 340px); aspect-ratio:405/567; perspective:1100px; }
-  .pokemon-card {
-    --rx:0deg; --ry:0deg; --px:50%; --py:50%; --depth:1;
-    width:100%; height:100%; position:relative; overflow:hidden; border-radius:4.9%;
-    transform-style:preserve-3d; transform:rotateX(var(--rx)) rotateY(var(--ry));
-    transition:transform .14s ease-out; isolation:isolate; box-shadow:0 24px 60px #0009, 0 0 30px #e9b94020;
-    background:#2d2413; cursor:pointer; touch-action:pan-y;
-  }
-  .pokemon-card.is-resetting { transition:transform .55s cubic-bezier(.2,.8,.2,1); }
-  .art, .bg, .bg2, .border, .decor, .shine { position:absolute; inset:0; width:100%; height:100%; }
-  .bg { z-index:0; object-fit:cover; transform:translateZ(-20px) scale(1.06); }
-  .bg2 { z-index:1; object-fit:cover; opacity:.66; mix-blend-mode:screen; transform:translateZ(-10px) scale(1.04); }
-  .art-wrap { position:absolute; z-index:2; inset:5% 5% 5%; overflow:hidden; transform:translateZ(12px); }
-  .art { object-fit:contain; filter:drop-shadow(0 7px 4px #0007); }
-  .decor { z-index:3; object-fit:fill; opacity:.78; mix-blend-mode:screen; transform:translateZ(24px); pointer-events:none; }
-  .border { z-index:5; object-fit:fill; pointer-events:none; transform:translateZ(32px); }
-  .glint { position:absolute; z-index:4; inset:0; pointer-events:none; opacity:.45; mix-blend-mode:screen;
-    background:linear-gradient(118deg,transparent 25%,#fff2 42%,#fff8 48%,#fff1 53%,transparent 68%);
-    background-size:240% 240%; background-position:var(--px) var(--py); transform:translateZ(28px); }
-  .shine { z-index:6; pointer-events:none; opacity:0; mix-blend-mode:color-dodge; transform:translateZ(35px);
-    background:radial-gradient(circle at var(--px) var(--py),#fff9 0, #6ef8ff62 16%,#ff59ca3d 35%,transparent 68%); }
-  .card-copy { position:absolute; z-index:7; inset:0; padding:7.2% 8% 6%; display:flex; flex-direction:column; justify-content:space-between;
-    transform:translateZ(42px); pointer-events:none; text-shadow:0 2px 3px #000, 1px 1px 2px #000; }
-  .topline { display:flex; align-items:center; justify-content:space-between; gap:4px; }
-  .name { font-size:clamp(18px,6vw,27px); font-weight:900; letter-spacing:-.04em; }
-  .hp { display:flex; align-items:baseline; gap:4px; white-space:nowrap; font-weight:900; }
-  .hp strong { font-size:clamp(20px,6vw,28px); }
-  .type { font-size:10px; font-weight:900; letter-spacing:.08em; text-transform:uppercase; opacity:.95; }
-  .attacks { margin-top:auto; padding:0 1% 13%; display:grid; gap:14px; }
-  .attack { background:linear-gradient(90deg,#090909c9,#1212127a,transparent); border-radius:8px; padding:6px 8px; }
-  .attack-head { display:flex; justify-content:space-between; align-items:baseline; gap:8px; font-size:clamp(13px,4vw,17px); font-weight:900; }
-  .attack-desc { font-size:clamp(9px,2.7vw,11px); font-weight:600; margin-top:3px; }
-  .energy { letter-spacing:2px; color:#ffe084; }
-  .setmark { position:absolute; z-index:8; left:8%; bottom:3%; font-size:8px; color:#fff9; transform:translateZ(44px); pointer-events:none; }
+  .demo { display:grid; justify-items:center; gap:14px; }
+  .card-stage { width:min(var(--card-w), calc(100vw - 40px)); aspect-ratio:405/566; position:relative; }
+  .pokemon-card { position:absolute; inset:0; width:100%; height:100%; user-select:none; }
 
-  /* 1 — inclinação 3D clássica */
-  .mode-tilt .pokemon-card:hover .shine, .mode-tilt .pokemon-card.is-active .shine { opacity:.85; }
-  /* 2 — deslocamento independente da arte, fundo e moldura */
-  .mode-layers .art-wrap { transform:translate3d(calc(var(--mx,0px)*1.7),calc(var(--my,0px)*1.7),18px); }
-  .mode-layers .bg { transform:translate3d(calc(var(--mx,0px)*-.55),calc(var(--my,0px)*-.55),-20px) scale(1.08); }
-  .mode-layers .bg2 { transform:translate3d(calc(var(--mx,0px)*-.8),calc(var(--my,0px)*-.8),-10px) scale(1.06); }
-  .mode-layers .decor { transform:translate3d(calc(var(--mx,0px)*.8),calc(var(--my,0px)*.8),25px); }
-  .mode-layers .card-copy { transform:translate3d(calc(var(--mx,0px)*.45),calc(var(--my,0px)*.45),42px); }
-  /* 3 — paralaxe suave com brilho holográfico */
-  .mode-holo .pokemon-card { transition:transform .26s cubic-bezier(.2,.8,.2,1); }
-  .mode-holo .pokemon-card:hover .shine, .mode-holo .pokemon-card.is-active .shine { opacity:1; }
-  .mode-holo .glint { opacity:.75; }
-  .controls { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; }
-  .controls button { border:1px solid #ffffff2a; background:#ffffff0b; color:#e9e9ef; border-radius:999px; padding:9px 14px; font:600 12px system-ui; cursor:pointer; transition:.2s; }
-  .controls button:hover { border-color:#ffd76a88; }
-  .controls button[aria-pressed="true"] { color:#17120a; background:var(--gold); border-color:var(--gold); }
-  .hint { color:#aaaab5; font-size:11px; text-align:center; }
-  @media (prefers-reduced-motion: reduce) { *,*::before,*::after { transition-duration:.01ms!important; } }
+  /* Os dois wrappers separados criam a mesma perspectiva independente do corpo e do texto. */
+  .body-perspective, .text-perspective {
+    position:absolute; inset:0; display:flex; width:100%; height:100%;
+    transform:translateZ(0); perspective:1000px;
+  }
+  .body-perspective > *, .text-perspective > * { transform-style:preserve-3d; }
+  .text-perspective { pointer-events:none; }
+  .card-body {
+    --color1:#ec9bb6; --color2:#ccac6f; --color3:#69e4a5; --color4:#8ec5d6; --color5:#b98cce;
+    position:relative; z-index:10; display:flex; width:100%; height:100%; border-radius:24px;
+    transform-style:preserve-3d; transform-origin:center; touch-action:none;
+    box-shadow:-5px -5px 5px -5px var(--color1),5px 5px 5px -5px var(--color2),
+      -7px -7px 10px -5px transparent,7px 7px 10px -5px transparent,
+      0 0 5px 0 #ffffff00,0 55px 35px -20px #0008;
+    transition:transform .5s ease, box-shadow .2s ease;
+  }
+  .card-body[data-active] { transition:box-shadow .1s ease-out; box-shadow:0 0 30px -5px #ff0,0 0 10px -2px #ff0; }
+  .bg-window {
+    position:absolute; inset:0; border-radius:24px; overflow:hidden; isolation:isolate;
+  }
+  .card-bg {
+    position:absolute; inset:0;
+    background-image:url("https://raw.githubusercontent.com/M4-caco/PTCGP-Cards/main/card-bg.webp"),url("https://raw.githubusercontent.com/M4-caco/PTCGP-Cards/main/card-bg-2.webp");
+    background-repeat:no-repeat,no-repeat; background-position:50% 50%,50% 50%;
+    background-size:465px 648px,465px 648px; transition:background-position .5s ease;
+  }
+  .card-border {
+    position:absolute; inset:0; border-radius:24px;
+    background:url("https://raw.githubusercontent.com/M4-caco/PTCGP-Cards/main/card-border.webp") no-repeat 50%/100% 100%;
+  }
+  .card-grad {
+    position:absolute; z-index:1; inset:0; opacity:.8; mix-blend-mode:color-dodge;
+    background-repeat:no-repeat; background-position:50% 50%; background-size:300% 300%;
+    filter:brightness(.8) contrast(1); transition:background-position .5s ease,opacity .5s ease;
+  }
+  .card-body[data-active] .card-grad {
+    background-image:linear-gradient(135deg,transparent 35%,var(--color1) 44%,var(--color2) 47%,var(--color3) 50%,var(--color4) 53%,var(--color5) 56%,transparent 65%);
+    background-size:250% 250%; transition:none;
+  }
+  .card-body[data-active] .card-bg { transition:none; }
+  .card-img {
+    position:relative; width:calc(100% - 33px); height:calc(100% - 36px); border-radius:4px;
+    margin:auto; overflow:hidden; pointer-events:none; object-fit:cover;
+    transform:translateZ(50px) scale(.95); transform-origin:center;
+  }
+  .card-img > img {
+    position:absolute; top:50%; left:50%; width:100%; height:100%; object-fit:contain;
+    transform:translate(-50%,-50%) scale(1) translateX(0%) translateY(0%);
+    transform-origin:center; transition:transform .12s ease-out;
+  }
+  .card-decor {
+    position:absolute; top:-18px; left:-12px; right:-12px; bottom:-18px;
+    background:url("https://raw.githubusercontent.com/M4-caco/PTCGP-Cards/main/card-decor.webp") no-repeat 50%/100% 100%;
+    opacity:.7; filter:brightness(1.2); pointer-events:none;
+  }
+  .card-copy {
+    position:relative; width:100%; height:100%; color:#231417; letter-spacing:-.02em;
+    transition:transform .5s ease; transform-origin:center;
+  }
+  .card-copy[data-active] { transition:none; }
+  .outlined { -webkit-text-stroke:.1em #fff; paint-order:stroke fill; }
+  .card-head {
+    position:absolute; top:24px; left:10px; right:21px; display:flex; justify-content:space-between;
+    align-items:flex-start; font-weight:800; line-height:1; text-shadow:0 1px 1px #fff;
+  }
+  .name-line { display:flex; align-items:baseline; gap:5px; font-size:26px; }
+  .basic { font-size:10px; color:#49432e; background:#e8e0a9; border-radius:4px; padding:2px 4px; letter-spacing:0; }
+  .name { font-size:26px; font-weight:900; }
+  .hp { display:flex; align-items:baseline; gap:3px; white-space:nowrap; font-size:14px; }
+  .hp strong { font-size:25px; }
+  .metal-dot { align-self:center; width:20px; height:20px; display:inline-grid; place-items:center; border:1px solid white; border-radius:50%; background:#69747a; color:white; font-size:11px; }
+  .attacks { position:absolute; left:32px; right:32px; bottom:176px; display:flex; flex-direction:column; gap:12px; transform:translateY(50%); }
+  .attack-head { display:flex; justify-content:space-between; gap:8px; align-items:baseline; font-size:18px; font-weight:800; }
+  .attack-name { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .energy { font-size:17px; letter-spacing:1px; color:#d9d8d0; -webkit-text-stroke:.7px #5e5d58; white-space:nowrap; }
+  .damage { flex:none; }
+  .attack-desc { margin-top:2px; font-size:12px; line-height:1.2; font-weight:600; }
+  .footer-art {
+    position:absolute; right:6px; bottom:18px; width:370px; height:65px; object-fit:contain;
+  }
+  .simple-glare {
+    position:absolute; inset:0; border-radius:24px; z-index:11; pointer-events:none;
+    opacity:0; mix-blend-mode:screen;
+    background:radial-gradient(circle at var(--px,50%) var(--py,50%),#ffffff70,transparent 48%);
+  }
+  .mode-holo .simple-glare { opacity:.65; }
+
+  .controls { display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:8px; }
+  .controls button,.zoom-control {
+    min-height:36px; border:1px solid #ffffff2b; border-radius:999px; background:#ffffff0a;
+    color:#e9e8ed; padding:8px 13px; font:600 12px system-ui; cursor:pointer;
+  }
+  .controls button[aria-pressed="true"] { color:#17130a; background:var(--gold); border-color:var(--gold); }
+  .zoom-control { display:flex; align-items:center; gap:9px; cursor:default; }
+  .zoom-control input { width:120px; accent-color:var(--gold); cursor:pointer; }
+  #zoomValue { min-width:38px; text-align:right; color:#fff; font-variant-numeric:tabular-nums; }
+  .hint { color:#a9a8b2; font-size:11px; text-align:center; }
+  @media(max-width:440px) {
+    .card-head { top:5%; left:2.5%; right:5%; }
+    .name-line,.name { font-size:clamp(17px,6vw,26px); }
+    .hp strong { font-size:clamp(19px,6vw,25px); }
+    .attacks { left:8%; right:8%; bottom:31%; }
+    .attack-head { font-size:clamp(12px,4vw,18px); }
+    .attack-desc { font-size:clamp(9px,2.8vw,12px); }
+    .footer-art { width:91%; right:2%; height:11.5%; bottom:3%; }
+    .zoom-control input { width:96px; }
+  }
+  @media(prefers-reduced-motion:reduce) { *,*::before,*::after { transition-duration:.01ms!important; } }
 </style>
 </head>
 <body>
-<main class="demo" id="demo">
-  <div class="card-stage">
+<main class="demo mode-layers" id="demo">
+  <div class="card-stage" id="cardStage">
     <article class="pokemon-card" id="pokemonCard" aria-label="Carta Pokémon Dialga ex">
-      <img class="bg" src="https://raw.githubusercontent.com/M4-caco/PTCGP-Cards/main/card-bg.webp" alt="">
-      <img class="bg2" src="https://raw.githubusercontent.com/M4-caco/PTCGP-Cards/main/card-bg-2.webp" alt="">
-      <div class="art-wrap"><img class="art" src="https://raw.githubusercontent.com/M4-caco/PTCGP-Cards/main/example.png" alt="Dialga"></div>
-      <img class="decor" src="https://raw.githubusercontent.com/M4-caco/PTCGP-Cards/main/card-decor.webp" alt="">
-      <div class="glint"></div><div class="shine"></div>
-      <div class="card-copy">
-        <header class="topline"><div><div class="type">Metal · Pokémon Básico</div><div class="name">Dialga ex</div></div><div class="hp"><span>HP</span><strong>150</strong></div></header>
-        <section class="attacks" aria-label="Ataques">
-          <div class="attack"><div class="attack-head"><span><span class="energy">● ●</span> Turbo Metálico</span><span>30</span></div><div class="attack-desc">Pegue 2 Energias de Metal da sua Zona de Energia e anexe-as a 1 dos seus Pokémon no Banco.</div></div>
-          <div class="attack"><div class="attack-head"><span><span class="energy">● ● ◇ ◇</span> Impacto Pesado</span><span>100</span></div></div>
-        </section>
+      <div class="body-perspective">
+        <div class="card-body" id="cardBody">
+          <div class="bg-window">
+            <div class="card-bg" id="cardBg"></div>
+            <div class="card-border"></div>
+            <div class="card-grad" id="cardGrad"></div>
+          </div>
+          <div class="card-img" id="cardImg">
+            <img id="pokemonArt" src="https://raw.githubusercontent.com/M4-caco/PTCGP-Cards/main/example.png" alt="Dialga">
+            <div class="card-decor"></div>
+          </div>
+        </div>
       </div>
-      <span class="setmark">Ilustração de demonstração · PTCGP</span>
-      <img class="border" src="https://raw.githubusercontent.com/M4-caco/PTCGP-Cards/main/card-border.webp" alt="">
+      <div class="text-perspective">
+        <div class="card-copy" id="cardCopy">
+          <header class="card-head">
+            <div class="name-line"><span class="basic">BÁSICO</span><span class="name outlined">Dialga ex</span></div>
+            <div class="hp"><span>HP</span><strong class="outlined">150</strong><span class="metal-dot">●</span></div>
+          </header>
+          <section class="attacks" aria-label="Ataques">
+            <div>
+              <div class="attack-head"><span class="attack-name"><span class="energy">● ●</span> Turbo Metálico</span><span class="damage outlined">30</span></div>
+              <div class="attack-desc outlined">Pegue 2 Energias de Metal da sua Zona de Energia e anexe-as a 1 dos seus Pokémon no Banco.</div>
+            </div>
+            <div>
+              <div class="attack-head"><span class="attack-name"><span class="energy">● ● ◇ ◇</span> Impacto Pesado</span><span class="damage outlined">100</span></div>
+            </div>
+          </section>
+          <img class="footer-art" src="https://raw.githubusercontent.com/M4-caco/PTCGP-Cards/main/card-bottom-pt.webp" alt="">
+        </div>
+      </div>
+      <div class="simple-glare"></div>
     </article>
   </div>
   <nav class="controls" aria-label="Modo de paralaxe">
-    <button type="button" data-mode="tilt" aria-pressed="true">1 · 3D</button>
-    <button type="button" data-mode="layers" aria-pressed="false">2 · Camadas</button>
+    <button type="button" data-mode="tilt" aria-pressed="false">1 · 3D</button>
+    <button type="button" data-mode="layers" aria-pressed="true">2 · Camadas</button>
     <button type="button" data-mode="holo" aria-pressed="false">3 · Holográfico</button>
+    <label class="zoom-control" for="zoomRange"><span>Zoom</span><input id="zoomRange" type="range" min="70" max="130" step="1" value="100" aria-label="Zoom da arte"><output id="zoomValue">100%</output></label>
   </nav>
-  <div class="hint">Mova o cursor sobre a carta ou arraste com o dedo.</div>
+  <div class="hint">Mova o cursor sobre a carta. Ajuste o zoom da arte no controle.</div>
 </main>
 <script>
 (() => {
   const demo = document.getElementById('demo');
-  const card = document.getElementById('pokemonCard');
+  const stage = document.getElementById('cardStage');
+  const cardBody = document.getElementById('cardBody');
+  const cardCopy = document.getElementById('cardCopy');
+  const cardBg = document.getElementById('cardBg');
+  const cardGrad = document.getElementById('cardGrad');
+  const art = document.getElementById('pokemonArt');
+  const zoomRange = document.getElementById('zoomRange');
+  const zoomValue = document.getElementById('zoomValue');
+  let activeMode = 'layers';
   let raf = 0;
-  function move(clientX, clientY) {
-    const r = card.getBoundingClientRect();
-    const x = (clientX - r.left) / r.width;
-    const y = (clientY - r.top) / r.height;
-    const dx = (x - .5) * 2, dy = (y - .5) * 2;
+
+  function clamp(n,min,max) { return Math.min(Math.max(n,min),max); }
+  function reset() {
+    cardBody.style.transform = '';
+    cardCopy.style.transform = '';
+    cardBody.removeAttribute('data-active');
+    cardCopy.removeAttribute('data-active');
+    cardBg.style.backgroundPosition = '';
+    cardGrad.style.backgroundPosition = '';
+  }
+  function updateLayers(clientX,clientY) {
+    const rect = stage.getBoundingClientRect();
+    const w = rect.width, h = rect.height;
+    const offsetX = clientX - rect.left, offsetY = clientY - rect.top;
+    // Reproduz a fórmula do site: amplia o deslocamento 1,5× e limita à área da carta.
+    const x = clamp(w/2 + (offsetX - w/2)*1.5, 0, w);
+    const y = clamp(h/2 + (offsetY - h/2)*1.5, 0, h);
+    const n = Math.abs(Math.floor(100/w*x) - 100);
+    const o = Math.abs(Math.floor(100/h*y) - 100);
+    const mx = 50 + (n-50)/1.5;
+    const my = 50 + (o-50)/1.5;
+    const rx = -((my-50)/2);
+    const ry = ((mx-50)/1.5*.5);
+    // No original, o fundo usa N (movimento menor) e o gradiente usa v (movimento maior).
+    const bgPos = `${50+(n-50)/2}% ${50+(o-50)/2}%`;
+    const gradPos = `${mx}% ${my}%`;
     cancelAnimationFrame(raf);
     raf = requestAnimationFrame(() => {
-      card.style.setProperty('--rx', `${(-dy * 13).toFixed(2)}deg`);
-      card.style.setProperty('--ry', `${(dx * 13).toFixed(2)}deg`);
-      card.style.setProperty('--px', `${(x*100).toFixed(1)}%`);
-      card.style.setProperty('--py', `${(y*100).toFixed(1)}%`);
-      card.style.setProperty('--mx', `${(dx*7).toFixed(1)}px`);
-      card.style.setProperty('--my', `${(dy*7).toFixed(1)}px`);
-      card.classList.add('is-active');
+      const transform = `rotateX(${rx}deg) rotateY(${ry}deg)`;
+      cardBody.style.transform = transform;
+      cardCopy.style.transform = transform;
+      cardBody.dataset.active = 'true';
+      cardCopy.dataset.active = 'true';
+      cardBg.style.backgroundPosition = `${bgPos}, ${bgPos}`;
+      cardGrad.style.backgroundPosition = gradPos;
+      stage.style.setProperty('--px', `${offsetX/w*100}%`);
+      stage.style.setProperty('--py', `${offsetY/h*100}%`);
     });
   }
-  function reset() {
-    card.classList.add('is-resetting'); card.classList.remove('is-active');
-    ['--rx','--ry','--mx','--my'].forEach(p => card.style.setProperty(p, '0deg'));
-    card.style.setProperty('--mx','0px'); card.style.setProperty('--my','0px');
-    card.style.setProperty('--px','50%'); card.style.setProperty('--py','50%');
-    setTimeout(() => card.classList.remove('is-resetting'), 560);
+  function updateSimpleTilt(clientX,clientY) {
+    const r = stage.getBoundingClientRect();
+    const dx = clamp((clientX-r.left)/r.width,0,1)-.5;
+    const dy = clamp((clientY-r.top)/r.height,0,1)-.5;
+    const transform = `rotateX(${-dy*30}deg) rotateY(${dx*24}deg)`;
+    cardBody.style.transform = transform;
+    cardCopy.style.transform = transform;
+    cardBody.dataset.active = 'true'; cardCopy.dataset.active = 'true';
   }
-  card.addEventListener('pointermove', e => { if (e.pointerType !== 'touch' || e.buttons) move(e.clientX,e.clientY); });
-  card.addEventListener('pointerleave', reset);
-  card.addEventListener('pointerdown', e => { if (e.pointerType === 'touch') move(e.clientX,e.clientY); });
+  stage.addEventListener('pointermove', e => {
+    if (e.pointerType === 'touch' && !e.buttons) return;
+    if (activeMode === 'layers') updateLayers(e.clientX,e.clientY);
+    else updateSimpleTilt(e.clientX,e.clientY);
+  });
+  stage.addEventListener('pointerleave', reset);
+  stage.addEventListener('pointerdown', e => {
+    if (e.pointerType === 'touch') {
+      if (activeMode === 'layers') updateLayers(e.clientX,e.clientY);
+      else updateSimpleTilt(e.clientX,e.clientY);
+    }
+  });
   document.querySelectorAll('.controls button').forEach(button => button.addEventListener('click', () => {
+    activeMode = button.dataset.mode;
     demo.classList.remove('mode-tilt','mode-layers','mode-holo');
-    demo.classList.add(`mode-${button.dataset.mode}`);
-    document.querySelectorAll('.controls button').forEach(b => b.setAttribute('aria-pressed', String(b === button)));
+    demo.classList.add(`mode-${activeMode}`);
+    document.querySelectorAll('.controls button').forEach(b => b.setAttribute('aria-pressed',String(b===button)));
     reset();
   }));
-  demo.classList.add('mode-tilt');
+  function setZoom(value) {
+    const scale = Number(value)/100;
+    art.style.transform = `translate(-50%, -50%) scale(${scale}) translateX(0%) translateY(0%)`;
+    zoomValue.value = `${value}%`;
+    zoomValue.textContent = `${value}%`;
+  }
+  zoomRange.addEventListener('input',e => setZoom(e.target.value));
+  setZoom(zoomRange.value);
 })();
 </script>
 </body>
