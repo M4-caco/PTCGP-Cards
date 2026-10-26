@@ -2,520 +2,328 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PTCG Pocket 3D Card Generator</title>
-    <!-- Tailwind CSS para UI elegante -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PTCGP Card Preview</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+        :root {
+            --card-width: 405px;
+            --card-height: 567px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
 
         body {
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            background: radial-gradient(circle at center, #1e1b4b 0%, #0f172a 60%, #020617 100%);
-            color: #f8fafc;
+            background-color: #0f172a;
             min-height: 100vh;
-            touch-action: manipulation;
-            overflow-x: hidden;
-        }
-
-        /* Container da perspectiva 3D */
-        .perspective-container {
-            perspective: 1200px;
-            transform-style: preserve-3d;
-        }
-
-        .card-wrapper {
-            position: relative;
-            transform-style: preserve-3d;
-            will-change: transform;
-            transition: transform 0.1s ease-out, box-shadow 0.3s ease;
-        }
-
-        /* Moldura e Imagem da Carta */
-        .card-inner {
-            position: relative;
-            width: 100%;
-            height: 100%;
-            border-radius: 18px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             overflow: hidden;
-            background: #090d16;
-            transform-style: preserve-3d;
-            box-shadow: 
-                0 20px 40px -15px rgba(0, 0, 0, 0.7),
-                0 0 20px rgba(99, 102, 241, 0.2);
         }
 
-        .card-img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            border-radius: 18px;
-            pointer-events: none;
+        /* Container de visualização e escalonamento responsivo */
+        .card-stage {
+            width: 270px;
+            height: 377px;
+            position: relative;
+            margin-bottom: 40px;
+        }
+
+        @media (min-width: 768px) {
+            .card-stage {
+                width: var(--card-width);
+                height: var(--card-height);
+            }
+        }
+
+        .custom-card {
+            width: var(--card-width);
+            height: var(--card-height);
+            position: relative;
+            transform-origin: top left;
             user-select: none;
         }
 
-        /* Efeitos Holográficos (Foil / Shimmer / Rainbow) */
-        .card-holo {
+        @media (max-width: 767px) {
+            .custom-card {
+                transform: scale(calc(270 / 405));
+            }
+        }
+
+        /* Estrutura de Camadas (Card Body) */
+        .custom-card-body-wrapper {
             position: absolute;
             inset: 0;
-            border-radius: 18px;
-            pointer-events: none;
-            mix-blend-mode: color-dodge;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            background-repeat: no-repeat;
+            border-radius: 20px;
+            overflow: hidden;
+        }
+
+        .custom-card-body {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        .custom-card-bg-wrapper {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+        }
+
+        .custom-card-bg {
+            position: absolute;
+            inset: 0;
             background-size: cover;
+            background-position: center;
         }
 
-        /* 1. Holofoil Padrão */
-        .holo-standard {
-            background-image: 
-                radial-gradient(
-                    circle at var(--pointer-x, 50%) var(--pointer-y, 50%),
-                    rgba(255, 255, 255, 0.8) 0%,
-                    rgba(255, 200, 0, 0.5) 20%,
-                    rgba(0, 225, 255, 0.4) 40%,
-                    rgba(255, 0, 200, 0.3) 60%,
-                    transparent 80%
-                ),
-                linear-gradient(
-                    calc(var(--angle, 0deg)),
-                    transparent 20%,
-                    rgba(255, 255, 255, 0.4) 45%,
-                    rgba(255, 255, 255, 0.7) 50%,
-                    rgba(255, 255, 255, 0.4) 55%,
-                    transparent 80%
-                );
-        }
-
-        /* 2. Rainbow / Secret Rare (Gradiente Dinâmico Arco-Íris) */
-        .holo-rainbow {
-            background: 
-                linear-gradient(
-                    calc(var(--angle, 0deg)),
-                    rgba(255, 0, 0, 0.5),
-                    rgba(255, 154, 0, 0.5),
-                    rgba(208, 222, 33, 0.5),
-                    rgba(79, 220, 74, 0.5),
-                    rgba(63, 218, 216, 0.5),
-                    rgba(47, 201, 226, 0.5),
-                    rgba(28, 127, 238, 0.5),
-                    rgba(95, 21, 242, 0.5),
-                    rgba(186, 12, 248, 0.5),
-                    rgba(251, 7, 217, 0.5)
-                ),
-                radial-gradient(
-                    circle at var(--pointer-x, 50%) var(--pointer-y, 50%),
-                    rgba(255, 255, 255, 0.9) 0%,
-                    rgba(255, 255, 255, 0.3) 30%,
-                    transparent 70%
-                );
-            mix-blend-mode: overlay;
-        }
-
-        /* 3. Gold / Crown Rare */
-        .holo-gold {
-            background: 
-                radial-gradient(
-                    circle at var(--pointer-x, 50%) var(--pointer-y, 50%),
-                    rgba(255, 247, 173, 0.9) 0%,
-                    rgba(255, 215, 0, 0.7) 25%,
-                    rgba(184, 134, 11, 0.5) 50%,
-                    transparent 80%
-                ),
-                repeating-linear-gradient(
-                    calc(var(--angle, 0deg)),
-                    rgba(255, 223, 0, 0.3) 0px,
-                    rgba(255, 255, 255, 0.6) 10px,
-                    rgba(218, 165, 32, 0.3) 20px
-                );
-            mix-blend-mode: color-dodge;
-        }
-
-        /* 4. Cosmic Foil (Estrelas / Partículas) */
-        .holo-cosmic {
-            background-image: 
-                radial-gradient(
-                    circle at var(--pointer-x, 50%) var(--pointer-y, 50%),
-                    rgba(255, 255, 255, 0.9) 0%,
-                    rgba(138, 43, 226, 0.6) 30%,
-                    rgba(0, 191, 255, 0.4) 60%,
-                    transparent 80%
-                ),
-                radial-gradient(circle at 20% 30%, rgba(255,255,255,0.8) 1px, transparent 2px),
-                radial-gradient(circle at 70% 60%, rgba(255,255,255,0.8) 1px, transparent 2px),
-                radial-gradient(circle at 40% 80%, rgba(255,255,255,0.8) 1.5px, transparent 2px);
-            background-size: 100% 100%, 50px 50px, 90px 90px, 70px 70px;
-            mix-blend-mode: color-dodge;
-        }
-
-        /* Brilho Glare Specular */
-        .card-glare {
+        .custom-card-border {
             position: absolute;
             inset: 0;
-            border-radius: 18px;
+            border: 12px solid #f1c40f;
+            border-radius: 20px;
             pointer-events: none;
-            background: radial-gradient(
-                circle at var(--pointer-x, 50%) var(--pointer-y, 50%),
-                rgba(255, 255, 255, var(--glare-opacity, 0.4)) 0%,
-                rgba(255, 255, 255, 0) 60%
-            );
-            mix-blend-mode: overlay;
-            opacity: 0;
-            transition: opacity 0.2s ease;
+            z-index: 2;
         }
 
-        .card-wrapper:hover .card-holo,
-        .card-wrapper:hover .card-glare,
-        .card-wrapper.active .card-holo,
-        .card-wrapper.active .card-glare {
-            opacity: 1;
+        .custom-card-grad {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(0,0,0,0.65) 100%);
+            z-index: 3;
         }
 
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
+        /* Camada da Arte Central do Pokémon */
+        .custom-card-img {
+            position: absolute;
+            inset: 0;
+            z-index: 4;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
         }
-        ::-webkit-scrollbar-track {
-            background: #0f172a;
+
+        .custom-card-img img {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(1) translateX(0%) translateY(0%);
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
         }
-        ::-webkit-scrollbar-thumb {
-            background: #334155;
-            border-radius: 4px;
+
+        .custom-card-decor {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 5;
         }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #475569;
+
+        /* Camada Superior de Tipografia e Detalhes */
+        .custom-card-text-wrapper {
+            position: absolute;
+            inset: 0;
+            z-index: 10;
+            padding: 24px;
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .custom-card-text {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .custom-card-text-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .flex { display: flex; }
+        .items-center { align-items: center; }
+        .items-end { align-items: flex-end; }
+        .gap-\[2px\] { gap: 2px; }
+        .gap-\[3px\] { gap: 3px; }
+        .gap-\[6px\] { gap: 6px; }
+        .grow { flex-grow: 1; }
+        .w-0 { width: 0; }
+        .relative { position: relative; }
+        .absolute { position: absolute; }
+        .inset-0 { top: 0; right: 0; bottom: 0; left: 0; }
+        .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        .type-icon {
+            width: 26px;
+            height: 26px;
+            border: 1px solid #FFFFFF;
+            border-radius: 50%;
+            background-color: rgba(0,0,0,0.3);
+        }
+
+        /* Efeito de Texto Contornado (Stroked) */
+        .custom-card-text-stroked {
+            color: #ffffff;
+            -webkit-text-stroke: 3px #000000;
+            paint-order: stroke fill;
+            font-weight: 800;
+        }
+
+        .card-name {
+            font-size: 26px;
+            line-height: 1.4;
+            max-width: 160px;
+        }
+
+        .hp-label { font-size: 16px; font-weight: 800; }
+        .hp-value { font-size: 26px; font-weight: 800; }
+
+        .custom-card-text-attacks {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .attack-title {
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .attack-desc {
+            min-height: 1em;
+            font-size: 12px;
+            font-weight: 500;
+            margin-top: 2px;
+            line-height: 1.3;
+        }
+
+        .custom-card-text-bottom {
+            width: 100%;
+            height: auto;
+            margin-top: auto;
         }
     </style>
 </head>
-<body class="flex flex-col lg:flex-row min-h-screen">
+<body>
 
-    <!-- Painel Lateral de Controles -->
-    <aside class="w-full lg:w-96 bg-slate-900/90 backdrop-blur-md border-r border-slate-800/80 p-6 flex flex-col justify-between z-20 shadow-2xl">
-        <div class="space-y-6">
-            <!-- Header -->
-            <div class="flex items-center gap-3 pb-4 border-b border-slate-800">
-                <div class="p-2.5 bg-indigo-600/20 text-indigo-400 rounded-xl border border-indigo-500/30">
-                    <i data-lucide="sparkles" class="w-6 h-6"></i>
-                </div>
-                <div>
-                    <h1 class="font-bold text-lg leading-tight text-white">PTCG Pocket 3D</h1>
-                    <p class="text-xs text-slate-400">Card FX & Viewer Studio</p>
-                </div>
-            </div>
-
-            <!-- Seleção de Cartas Pré-definidas -->
-            <div class="space-y-2">
-                <label class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
-                    <span>Galeria do Repositório</span>
-                    <span class="text-[10px] text-indigo-400 font-normal">M4-caco/PTCGP-Cards</span>
-                </label>
-                <div class="grid grid-cols-4 gap-2 max-h-32 overflow-y-auto p-1 bg-slate-950/50 rounded-xl border border-slate-800" id="galleryContainer">
-                    <!-- Gerado via JS -->
-                </div>
-            </div>
-
-            <!-- Upload Customizado & URL -->
-            <div class="space-y-3">
-                <label class="text-xs font-bold uppercase tracking-wider text-slate-400">Carta Personalizada</label>
-                <div class="flex gap-2">
-                    <input type="text" id="customUrlInput" placeholder="URL da Imagem (https://...)" 
-                           class="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 transition">
-                    <button id="loadUrlBtn" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-2 rounded-lg text-xs font-semibold transition">
-                        OK
-                    </button>
-                </div>
-                <label class="flex items-center justify-center gap-2 w-full bg-slate-800/50 hover:bg-slate-800 border border-dashed border-slate-700 hover:border-indigo-500/50 rounded-lg p-2.5 cursor-pointer text-xs text-slate-300 transition">
-                    <i data-lucide="upload" class="w-4 h-4 text-slate-400"></i>
-                    <span>Carregar do dispositivo</span>
-                    <input type="file" id="fileInput" accept="image/*" class="hidden">
-                </label>
-            </div>
-
-            <!-- Tipos de Efeito Holográfico -->
-            <div class="space-y-2">
-                <label class="text-xs font-bold uppercase tracking-wider text-slate-400">Efeito Holográfico (Foil)</label>
-                <div class="grid grid-cols-2 gap-2" id="holoStyleButtons">
-                    <button data-style="holo-standard" class="holo-btn active bg-indigo-600 border border-indigo-400/50 text-white p-2.5 rounded-lg text-xs font-medium flex items-center gap-2 transition">
-                        <i data-lucide="sun" class="w-4 h-4"></i> Holofoil Standard
-                    </button>
-                    <button data-style="holo-rainbow" class="holo-btn bg-slate-950 border border-slate-800 text-slate-300 hover:bg-slate-800 p-2.5 rounded-lg text-xs font-medium flex items-center gap-2 transition">
-                        <i data-lucide="aperture" class="w-4 h-4 text-pink-400"></i> Rainbow / Secret
-                    </button>
-                    <button data-style="holo-gold" class="holo-btn bg-slate-950 border border-slate-800 text-slate-300 hover:bg-slate-800 p-2.5 rounded-lg text-xs font-medium flex items-center gap-2 transition">
-                        <i data-lucide="crown" class="w-4 h-4 text-amber-400"></i> Gold Crown
-                    </button>
-                    <button data-style="holo-cosmic" class="holo-btn bg-slate-950 border border-slate-800 text-slate-300 hover:bg-slate-800 p-2.5 rounded-lg text-xs font-medium flex items-center gap-2 transition">
-                        <i data-lucide="orbit" class="w-4 h-4 text-cyan-400"></i> Cosmic Foil
-                    </button>
-                </div>
-            </div>
-
-            <!-- Sliders de Controle de Sensibilidade -->
-            <div class="space-y-4 pt-2 border-t border-slate-800">
-                <div>
-                    <div class="flex justify-between text-xs text-slate-400 mb-1">
-                        <span>Intensidade 3D (Tilt)</span>
-                        <span id="tiltVal">15</span>
-                    </div>
-                    <input type="range" id="tiltRange" min="5" max="35" value="15" class="w-full accent-indigo-500 bg-slate-800 h-1.5 rounded-lg appearance-none cursor-pointer">
-                </div>
-
-                <div>
-                    <div class="flex justify-between text-xs text-slate-400 mb-1">
-                        <span>Intensidade do Brilho (Glare)</span>
-                        <span id="glareVal">0.6</span>
-                    </div>
-                    <input type="range" id="glareRange" min="0.1" max="1" step="0.1" value="0.6" class="w-full accent-indigo-500 bg-slate-800 h-1.5 rounded-lg appearance-none cursor-pointer">
-                </div>
-            </div>
-
-            <!-- Botão de Giroscópio Mobile -->
-            <div id="gyroContainer" class="hidden pt-2">
-                <button id="enableGyroBtn" class="w-full bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 text-emerald-300 p-2.5 rounded-lg text-xs font-medium flex items-center justify-center gap-2 transition">
-                    <i data-lucide="smartphone" class="w-4 h-4"></i> Ativar Giroscópio Mobile
-                </button>
-            </div>
-        </div>
-
-        <div class="pt-6 border-t border-slate-800 text-center text-[11px] text-slate-500">
-            Imagens por <a href="https://github.com/M4-caco/PTCGP-Cards" target="_blank" class="text-indigo-400 hover:underline">M4-caco/PTCGP-Cards</a>
-        </div>
-    </aside>
-
-    <!-- Área Principal de Exibição da Carta 3D -->
-    <main class="flex-1 flex flex-col items-center justify-center p-6 relative overflow-hidden min-h-[500px]">
-        
-        <!-- Indicador Tátil/Mouse -->
-        <div class="absolute top-6 left-1/2 -translate-x-1/2 bg-slate-900/60 backdrop-blur-md px-4 py-1.5 rounded-full border border-slate-800 text-slate-400 text-xs flex items-center gap-2 pointer-events-none z-10 shadow-lg">
-            <i data-lucide="mouse-pointer" class="w-3.5 h-3.5 text-indigo-400"></i>
-            <span>Mova o mouse ou incline a tela para ver o efeito</span>
-        </div>
-
-        <!-- Container do Card -->
-        <div class="perspective-container w-full max-w-[320px] sm:max-w-[360px] aspect-[2.5/3.5] my-auto">
-            <div id="card" class="card-wrapper w-full h-full cursor-grab active:cursor-grabbing">
-                <div class="card-inner">
-                    <img id="cardImage" src="https://raw.githubusercontent.com/M4-caco/PTCGP-Cards/main/Charizard.png" alt="Pokémon Card" class="card-img" crossorigin="anonymous">
-                    <div id="cardHolo" class="card-holo holo-standard"></div>
-                    <div id="cardGlare" class="card-glare"></div>
-                </div>
-            </div>
-        </div>
-
-    </main>
-
-    <script>
-        // Inicializa ícones do Lucide
-        lucide.createIcons();
-
-        // Mapeamento de cartas do repositório M4-caco/PTCGP-Cards
-        const repoBaseUrl = "https://raw.githubusercontent.com/M4-caco/PTCGP-Cards/main/";
-        const sampleCards = [
-            "Charizard.png",
-            "Mewtwo.png",
-            "Pikachu.png",
-            "Pikachu_EX.png",
-            "Gengar.png",
-            "Gardevoir.png",
-            "Moltres.png",
-            "Articuno.png"
-        ];
-
-        // Elementos DOM
-        const card = document.getElementById('card');
-        const cardImage = document.getElementById('cardImage');
-        const cardHolo = document.getElementById('cardHolo');
-        const cardGlare = document.getElementById('cardGlare');
-        const galleryContainer = document.getElementById('galleryContainer');
-        const tiltRange = document.getElementById('tiltRange');
-        const tiltVal = document.getElementById('tiltVal');
-        const glareRange = document.getElementById('glareRange');
-        const glareVal = document.getElementById('glareVal');
-        const customUrlInput = document.getElementById('customUrlInput');
-        const loadUrlBtn = document.getElementById('loadUrlBtn');
-        const fileInput = document.getElementById('fileInput');
-        const holoBtns = document.querySelectorAll('.holo-btn');
-
-        // Configurações e Estado
-        let maxTilt = 15;
-        let maxGlare = 0.6;
-        let bounds = null;
-
-        // Preenche a galeria com imagens do repositório
-        function initGallery() {
-            sampleCards.forEach((filename, idx) => {
-                const url = repoBaseUrl + filename;
-                const imgBtn = document.createElement('button');
-                imgBtn.className = `relative rounded-lg overflow-hidden border-2 transition ${idx === 0 ? 'border-indigo-500 scale-95' : 'border-transparent hover:border-slate-700'}`;
-                imgBtn.innerHTML = `<img src="${url}" class="w-full h-12 object-cover" alt="Card Thumb" onerror="this.src='https://placehold.co/100x140/090d16/ffffff?text=Card'">`;
-                imgBtn.addEventListener('click', () => {
-                    document.querySelectorAll('#galleryContainer button').forEach(b => b.classList.replace('border-indigo-500', 'border-transparent'));
-                    imgBtn.classList.replace('border-transparent', 'border-indigo-500');
-                    setCardImage(url);
-                });
-                galleryContainer.appendChild(imgBtn);
-            });
-        }
-
-        function setCardImage(url) {
-            cardImage.src = url;
-        }
-
-        // --- LÓGICA DE INTERAÇÃO 3D & HOLOGRÁFICA ---
-
-        function updateTransforms(x, y) {
-            if (!bounds) bounds = card.getBoundingClientRect();
-
-            // Posição normalizada (-1 até 1)
-            const px = (x - bounds.left) / bounds.width;
-            const py = (y - bounds.top) / bounds.height;
-
-            const percentX = Math.max(0, Math.min(100, px * 100));
-            const percentY = Math.max(0, Math.min(100, py * 100));
-
-            // Rotação em Graus
-            const tiltX = (0.5 - py) * (maxTilt * 2);
-            const tiltY = (px - 0.5) * (maxTilt * 2);
-
-            // Ângulo para o gradiente
-            const angle = Math.atan2(y - (bounds.top + bounds.height / 2), x - (bounds.left + bounds.width / 2)) * (180 / Math.PI) - 90;
-
-            // Aplica as transformações na carta
-            card.style.transform = `rotateX(${tiltX}deg) rotateY(${tiltY}deg) scale3d(1.03, 1.03, 1.03)`;
+    <div class="card-stage">
+        <div class="origin-top-left custom-card">
             
-            // Variáveis CSS para a camada holográfica e glare
-            card.style.setProperty('--pointer-x', `${percentX}%`);
-            card.style.setProperty('--pointer-y', `${percentY}%`);
-            card.style.setProperty('--angle', `${angle}deg`);
-            card.style.setProperty('--glare-opacity', maxGlare);
-        }
+            <!-- Camadas de Fundo, Moldura e Imagem -->
+            <div class="custom-card-body-wrapper">
+                <div class="custom-card-body custom-card-level-4">
+                    <div class="custom-card-bg-wrapper">
+                        <div class="custom-card-bg"></div>
+                        <div class="custom-card-border"></div>
+                        <div class="custom-card-grad"></div>
+                    </div>
+                    
+                    <div class="custom-card-img">
+                        <!-- Substitua o caminho da imagem pelo arquivo correto do seu repositório -->
+                        <img alt="Pokémon Card Art" src="https://raw.githubusercontent.com/M4-caco/PTCGP-Cards/main/example.png" style="transform: translate(-50%, -50%) scale(1) translateX(0%) translateY(0%);">
+                        <div class="custom-card-decor"></div>
+                    </div>
+                </div>
+            </div>
 
-        function resetTransforms() {
-            card.style.transform = `rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)`;
-            card.classList.remove('active');
-            bounds = null;
-        }
+            <!-- Camada de Texto e Tipografia -->
+            <div class="custom-card-text-wrapper">
+                <div class="custom-card-text">
+                    
+                    <!-- Cabeçalho: Tipo, Nome, HP -->
+                    <div class="custom-card-text-head">
+                        <div class="flex items-center gap-[2px]">
+                            <img class="w-[58px] h-[20px]" style="width: 58px; height: 20px;" alt="Card Type" src="https://raw.githubusercontent.com/M4-caco/PTCGP-Cards/main/images/card-maker/card-type-pt.webp">
+                            <div class="relative card-name my-[-0.2em] truncate">
+                                <div class="custom-card-text-stroked truncate">Dialga</div>
+                                <div class="absolute inset-0 truncate">Dialga</div>
+                            </div>
+                            <img class="w-[42px] h-[28px]" style="width: 42px; height: 28px;" alt="Card EX" src="https://raw.githubusercontent.com/M4-caco/PTCGP-Cards/main/images/card-maker/card-ex.webp">
+                        </div>
+                        
+                        <div class="flex items-end gap-[2px]">
+                            <span class="relative hp-label">
+                                <div class="custom-card-text-stroked">HP</div>
+                                <div class="absolute inset-0">HP</div>
+                            </span>
+                            <span class="relative hp-value">
+                                <div class="custom-card-text-stroked">150</div>
+                                <div class="absolute inset-0">150</div>
+                            </span>
+                            <img class="type-icon" alt="Metal" src="https://raw.githubusercontent.com/M4-caco/PTCGP-Cards/main/icons/card-aspects/metal.svg">
+                        </div>
+                    </div>
 
-        // Eventos do Mouse
-        card.addEventListener('mouseenter', () => {
-            bounds = card.getBoundingClientRect();
-            card.classList.add('active');
-        });
+                    <!-- Ataques e Descrições -->
+                    <div class="custom-card-text-attacks">
+                        
+                        <!-- Ataque 1 -->
+                        <div>
+                            <div class="flex items-center gap-[6px] attack-title">
+                                <div class="flex gap-[3px]" style="width: 105px;">
+                                    <img class="type-icon" alt="Metal" src="https://raw.githubusercontent.com/M4-caco/PTCGP-Cards/main/icons/card-aspects/metal.svg">
+                                    <img class="type-icon" alt="Metal" src="https://raw.githubusercontent.com/M4-caco/PTCGP-Cards/main/icons/card-aspects/metal.svg">
+                                </div>
+                                <div class="relative grow w-0">
+                                    <div class="custom-card-text-stroked truncate">Turbo Metálico</div>
+                                    <div class="absolute inset-0 truncate">Turbo Metálico</div>
+                                </div>
+                                <div class="relative">
+                                    <div class="custom-card-text-stroked">30</div>
+                                    <div class="absolute inset-0">30</div>
+                                </div>
+                            </div>
+                            <div class="relative attack-desc">
+                                <div class="custom-card-text-stroked">Pegue 2 Energias de Metal da sua Zona de Energia e anexe-as a 1 dos seus Pokémon no Banco.</div>
+                                <div class="absolute inset-0">Pegue 2 Energias de Metal da sua Zona de Energia e anexe-as a 1 dos seus Pokémon no Banco.</div>
+                            </div>
+                        </div>
 
-        card.addEventListener('mousemove', (e) => {
-            updateTransforms(e.clientX, e.clientY);
-        });
+                        <!-- Ataque 2 -->
+                        <div>
+                            <div class="flex items-center gap-[6px] attack-title">
+                                <div class="flex gap-[3px]" style="width: 105px;">
+                                    <img class="type-icon" alt="Metal" src="https://raw.githubusercontent.com/M4-caco/PTCGP-Cards/main/icons/card-aspects/metal.svg">
+                                    <img class="type-icon" alt="Metal" src="https://raw.githubusercontent.com/M4-caco/PTCGP-Cards/main/icons/card-aspects/metal.svg">
+                                    <img class="type-icon" alt="Colorless" src="https://raw.githubusercontent.com/M4-caco/PTCGP-Cards/main/icons/card-aspects/colorless.svg">
+                                    <img class="type-icon" alt="Colorless" src="https://raw.githubusercontent.com/M4-caco/PTCGP-Cards/main/icons/card-aspects/colorless.svg">
+                                </div>
+                                <div class="relative grow w-0">
+                                    <div class="custom-card-text-stroked truncate">Impacto Pesado</div>
+                                    <div class="absolute inset-0 truncate">Impacto Pesado</div>
+                                </div>
+                                <div class="relative">
+                                    <div class="custom-card-text-stroked">100</div>
+                                    <div class="absolute inset-0">100</div>
+                                </div>
+                            </div>
+                            <div class="relative attack-desc">
+                                <div class="custom-card-text-stroked"></div>
+                                <div class="absolute inset-0"></div>
+                            </div>
+                        </div>
 
-        card.addEventListener('mouseleave', () => {
-            resetTransforms();
-        });
+                    </div>
 
-        // Eventos Touch (Mobile)
-        card.addEventListener('touchstart', (e) => {
-            bounds = card.getBoundingClientRect();
-            card.classList.add('active');
-        }, { passive: true });
+                    <!-- Rodapé da Carta -->
+                    <img class="custom-card-text-bottom" alt="Card Bottom" src="https://raw.githubusercontent.com/M4-caco/PTCGP-Cards/main/images/card-maker/card-bottom-pt.webp">
+                </div>
+            </div>
 
-        card.addEventListener('touchmove', (e) => {
-            if (e.touches.length > 0) {
-                const touch = e.touches[0];
-                updateTransforms(touch.clientX, touch.clientY);
-            }
-        }, { passive: true });
+        </div>
+    </div>
 
-        card.addEventListener('touchend', () => {
-            resetTransforms();
-        });
-
-        // Controles de Estilo Holográfico
-        holoBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                holoBtns.forEach(b => {
-                    b.classList.remove('active', 'bg-indigo-600', 'border-indigo-400/50', 'text-white');
-                    b.classList.add('bg-slate-950', 'border-slate-800', 'text-slate-300');
-                });
-                btn.classList.add('active', 'bg-indigo-600', 'border-indigo-400/50', 'text-white');
-                btn.classList.remove('bg-slate-950', 'border-slate-800', 'text-slate-300');
-
-                // Atualiza classe do Holo
-                cardHolo.className = `card-holo ${btn.dataset.style}`;
-            });
-        });
-
-        // Sliders
-        tiltRange.addEventListener('input', (e) => {
-            maxTilt = parseFloat(e.target.value);
-            tiltVal.textContent = maxTilt;
-        });
-
-        glareRange.addEventListener('input', (e) => {
-            maxGlare = parseFloat(e.target.value);
-            glareVal.textContent = maxGlare;
-        });
-
-        // Upload por URL
-        loadUrlBtn.addEventListener('click', () => {
-            const url = customUrlInput.value.trim();
-            if (url) setCardImage(url);
-        });
-
-        // Upload por Arquivo Local
-        fileInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(evt) {
-                    setCardImage(evt.target.result);
-                };
-                reader.readAsDataURL(file);
-            }
-        });
-
-        // Suporte para Giroscópio (Mobile orientation)
-        if (window.DeviceOrientationEvent) {
-            const gyroContainer = document.getElementById('gyroContainer');
-            const enableGyroBtn = document.getElementById('enableGyroBtn');
-
-            // Exibe o botão em dispositivos móveis
-            if ('ontouchstart' in window) {
-                gyroContainer.classList.remove('hidden');
-            }
-
-            enableGyroBtn.addEventListener('click', () => {
-                if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-                    DeviceOrientationEvent.requestPermission()
-                        .then(permissionState => {
-                            if (permissionState === 'granted') {
-                                window.addEventListener('deviceorientation', handleOrientation);
-                                enableGyroBtn.classList.add('hidden');
-                            }
-                        })
-                        .catch(console.error);
-                } else {
-                    window.addEventListener('deviceorientation', handleOrientation);
-                    enableGyroBtn.classList.add('hidden');
-                }
-            });
-
-            function handleOrientation(e) {
-                if (!e.gamma || !e.beta) return;
-                bounds = card.getBoundingClientRect();
-                
-                // Mapeia inclinação do dispositivo
-                const x = bounds.left + bounds.width / 2 + (e.gamma * 5);
-                const y = bounds.top + bounds.height / 2 + (e.beta * 3 - 90);
-                
-                card.classList.add('active');
-                updateTransforms(x, y);
-            }
-        }
-
-        // Inicialização
-        initGallery();
-    </script>
 </body>
 </html>
