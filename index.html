@@ -3,12 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PTCGP Card Parallax Multicamada</title>
+    <title>PTCGP Card Preview</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         :root {
             --pointer-x: 50%;
             --pointer-y: 50%;
+            --rotate-x: 0deg;
+            --rotate-y: 0deg;
         }
 
         body {
@@ -18,30 +20,29 @@
             justify-content: center;
             align-items: center;
             overflow: hidden;
-            perspective: 1200px;
+            perspective: 1000px;
         }
 
+        /* Palco com perspectiva para o efeito 3D */
+        .card-stage {
+            perspective: 1000px;
+        }
+
+        /* A carta rígida principal */
         .custom-card {
             width: 405px;
             height: 567px;
             position: relative;
             transform-style: preserve-3d;
-            cursor: pointer;
+            transform: rotateX(var(--rotate-x)) rotateY(var(--rotate-y));
             will-change: transform;
+            cursor: pointer;
+            border-radius: 20px;
         }
 
-        /* Camadas com transição suave ao sair do mouse */
-        .custom-card-body,
-        .custom-card-text-wrapper {
-            transition: transform 0.1s ease-out;
-            transform-style: preserve-3d;
-        }
-
-        .custom-card-text-stroked {
-            -webkit-text-stroke: 3px #000000;
-            paint-order: stroke fill;
-            color: #ffffff;
-            font-weight: 900;
+        /* Efeito de transição suave APENAS quando o mouse sai da carta */
+        .custom-card.is-leaving {
+            transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
         }
 
         .custom-card-bg {
@@ -53,7 +54,20 @@
             border-radius: 20px;
         }
 
-        /* Efeito Holográfico de Brilho Dinâmico */
+        /* Camada 3D da Tipografia e Ícones (Flutua 30px à frente da carta) */
+        .custom-card-text-wrapper {
+            transform: translateZ(30px);
+            transform-style: preserve-3d;
+        }
+
+        .custom-card-text-stroked {
+            -webkit-text-stroke: 3px #000000;
+            paint-order: stroke fill;
+            color: #ffffff;
+            font-weight: 900;
+        }
+
+        /* Camada Holográfica de Brilho Direcional */
         .holo-shine {
             position: absolute;
             inset: 0;
@@ -62,13 +76,14 @@
             z-index: 60;
             mix-blend-mode: color-dodge;
             opacity: 0;
-            transition: opacity 0.3s ease;
+            transition: opacity 0.2s ease;
+            transform: translateZ(1px);
             background: radial-gradient(
                 circle at var(--pointer-x) var(--pointer-y),
-                rgba(255, 255, 255, 0.85) 0%,
-                rgba(255, 215, 0, 0.45) 30%,
-                rgba(0, 255, 255, 0.25) 60%,
-                transparent 85%
+                rgba(255, 255, 255, 0.8) 0%,
+                rgba(255, 215, 0, 0.4) 30%,
+                rgba(0, 255, 255, 0.2) 60%,
+                transparent 80%
             );
         }
 
@@ -86,16 +101,16 @@
 </head>
 <body>
 
-    <!-- Container Responsivo Idêntico ao Site de Referência -->
-    <div class="w-[270px] md:w-max h-[377px] md:h-max mx-auto mb-[40px]" style="perspective: 1200px;">
+    <!-- Container Responsivo de 270px (Mobile) a 405px (Desktop) -->
+    <div class="card-stage w-[270px] md:w-max h-[377px] md:h-max mx-auto mb-[40px]">
         <div class="origin-top-left max-md:scale-[calc(270/405)] custom-card" id="pokemonCard">
             
-            <!-- Camada Holográfica de Brilho -->
+            <!-- Brilho Holográfico -->
             <div class="holo-shine"></div>
 
-            <!-- Camada 1: Corpo da Carta (Fundo, Borda e Arte do Pokémon) -->
-            <div class="custom-card-body-wrapper absolute inset-0 rounded-[20px] overflow-hidden pointer-events-none">
-                <div class="custom-card-body custom-card-level-4 relative w-full h-full rounded-[20px] overflow-hidden shadow-2xl" id="cardBody" data-active="true">
+            <!-- Camada 1: Fundo, Moldura e Imagem Principal -->
+            <div class="custom-card-body-wrapper absolute inset-0 rounded-[20px] overflow-hidden">
+                <div class="custom-card-body relative w-full h-full">
                     
                     <div class="custom-card-bg-wrapper absolute inset-0 z-10">
                         <div class="custom-card-bg absolute inset-0"></div>
@@ -103,20 +118,19 @@
                         <div class="custom-card-grad absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/60 z-30"></div>
                     </div>
 
-                    <!-- Imagem do Pokémon ajustada ao tamanho exato da carta -->
+                    <!-- Imagem do Pokémon ajustada em 100% -->
                     <div class="custom-card-img absolute inset-0 z-40 flex items-center justify-center overflow-hidden">
-                        <img alt="Dialga Art" src="https://raw.githubusercontent.com/M4-caco/PTCGP-Cards/main/example.png" style="width: 100%; height: 100%; object-fit: cover; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">
-                        <div class="custom-card-decor absolute inset-0 pointer-events-none z-50"></div>
+                        <img alt="Dialga Art" src="https://raw.githubusercontent.com/M4-caco/PTCGP-Cards/main/example.png" class="w-full h-full object-cover">
                     </div>
 
                 </div>
             </div>
 
-            <!-- Camada 2: Textos e Informações (Parallax com profundidade maior simulando 3D flutuante) -->
-            <div class="custom-card-text-wrapper absolute inset-0 z-50 p-[24px] text-white flex flex-col justify-between pointer-events-none" id="cardText" data-active="true">
+            <!-- Camada 2: Textos e Ícones Flutuantes (TranslateZ de 30px) -->
+            <div class="custom-card-text-wrapper absolute inset-0 z-50 p-[24px] text-white flex flex-col justify-between pointer-events-none">
                 <div class="custom-card-text h-full flex flex-col justify-between">
                     
-                    <!-- Cabeçalho (Tipo, Nome, HP) -->
+                    <!-- Cabeçalho -->
                     <div class="custom-card-text-head flex items-center justify-between">
                         <div class="flex items-center gap-[2px]">
                             <img class="w-[58px] h-[20px] object-contain" alt="Card Type" src="https://raw.githubusercontent.com/M4-caco/PTCGP-Cards/main/images/card-maker/card-type-pt.webp">
@@ -140,7 +154,7 @@
                         </div>
                     </div>
 
-                    <!-- Seção de Ataques -->
+                    <!-- Ataques -->
                     <div class="custom-card-text-attacks flex flex-col gap-[14px]">
                         
                         <!-- Ataque 1 -->
@@ -200,13 +214,12 @@
         </div>
     </div>
 
-    <!-- Script de Parallax Multicamada Restrito à Área da Carta -->
+    <!-- Script de Rotação 3D Rígida e Instantânea (60 FPS) -->
     <script>
         const card = document.getElementById('pokemonCard');
-        const cardBody = document.getElementById('cardBody');
-        const cardText = document.getElementById('cardText');
+        let rafId = null;
 
-        card.addEventListener('mousemove', (e) => {
+        function updateParallax(e) {
             const rect = card.getBoundingClientRect();
             const x = e.clientX - rect.left;
             const y = e.clientY - rect.top;
@@ -214,26 +227,36 @@
             const centerX = rect.width / 2;
             const centerY = rect.height / 2;
 
-            // Ângulos de rotação independentes para simular profundidade 3D
-            const rotateX = -((y - centerY) / centerY) * 14;
-            const rotateY = ((x - centerX) / centerX) * 14;
+            // Rotação máxima de 15 graus
+            const rotateX = -((y - centerY) / centerY) * 15;
+            const rotateY = ((x - centerX) / centerX) * 15;
 
-            // Camada do Corpo (Fundo + Arte) com rotação base
-            cardBody.style.transform = `rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
-            
-            // Camada de Texto com multiplicador de rotação levemente maior e translateZ para flutuar acima
-            cardText.style.transform = `rotateX(${rotateX * 1.25}deg) rotateY(${rotateY * 1.25}deg) translateZ(25px)`;
-
-            // Atualiza as coordenadas do brilho holográfico
+            // Posição percentual do mouse para o brilho holográfico
             const percentX = (x / rect.width) * 100;
             const percentY = (y / rect.height) * 100;
-            card.style.setProperty('--pointer-x', `${percentX}%`);
-            card.style.setProperty('--pointer-y', `${percentY}%`);
+
+            if (rafId) cancelAnimationFrame(rafId);
+
+            rafId = requestAnimationFrame(() => {
+                card.style.setProperty('--rotate-x', `${rotateX.toFixed(2)}deg`);
+                card.style.setProperty('--rotate-y', `${rotateY.toFixed(2)}deg`);
+                card.style.setProperty('--pointer-x', `${percentX.toFixed(1)}%`);
+                card.style.setProperty('--pointer-y', `${percentY.toFixed(1)}%`);
+            });
+        }
+
+        card.addEventListener('mouseenter', () => {
+            card.classList.remove('is-leaving');
         });
 
+        card.addEventListener('mousemove', updateParallax);
+
         card.addEventListener('mouseleave', () => {
-            cardBody.style.transform = 'rotateX(0deg) rotateY(0deg)';
-            cardText.style.transform = 'rotateX(0deg) rotateY(0deg) translateZ(0px)';
+            card.classList.add('is-leaving');
+            card.style.setProperty('--rotate-x', '0deg');
+            card.style.setProperty('--rotate-y', '0deg');
+            card.style.setProperty('--pointer-x', '50%');
+            card.style.setProperty('--pointer-y', '50%');
         });
     </script>
 </body>
